@@ -140,7 +140,7 @@ public class GitDataStore extends AbstractDataStore<GitDataStore> {
     @Override
     protected void activateInternal() {
         try {
-            super.activateInternal();;
+            super.activateInternal();
             // [FIXME] Why can we not rely on the injected GitService
             GitService optionalService = gitService.getOptional();
 
@@ -158,13 +158,11 @@ public class GitDataStore extends AbstractDataStore<GitDataStore> {
             threadPool.scheduleWithFixedDelay(new Runnable() {
                 @Override
                 public void run() {
-                    if (isValid()) {
-                        LOG.debug("Performing timed pull");
-                        pull();
-                        //a commit that failed to push for any reason, will not get pushed until the next commit.
-                        //periodically pushing can address this issue.
-                        push();
-                    }
+                    LOG.debug("Performing timed pull");
+                    pull();
+                    //a commit that failed to push for any reason, will not get pushed until the next commit.
+                    //periodically pushing can address this issue.
+                    push();
                 }
             }, gitPullPeriod, gitPullPeriod, TimeUnit.MILLISECONDS);
         } catch (Exception ex) {
@@ -284,7 +282,7 @@ public class GitDataStore extends AbstractDataStore<GitDataStore> {
         // create a branch
         gitOperation(new GitOperation<Void>() {
             public Void call(Git git, GitContext context) throws Exception {
-                // TODO lets checkout the previous versionu first!
+                // TODO lets checkout the previous version first!
                 createOrCheckoutVersion(git, version);
                 context.requirePush();
                 return null;
@@ -308,8 +306,17 @@ public class GitDataStore extends AbstractDataStore<GitDataStore> {
     }
 
     @Override
-    public void deleteVersion(String version) {
-        throw new UnsupportedOperationException("TODO");
+    public void deleteVersion(final String version) {
+        assertValid();
+        // remove a branch
+        gitOperation(new GitOperation<Void>() {
+            public Void call(Git git, GitContext context) throws Exception {
+                removeVersion(version);
+                GitHelpers.removeBranch(git, version);
+                context.requirePush();
+                return null;
+            }
+        });
     }
 
     @Override
@@ -1083,7 +1090,7 @@ public class GitDataStore extends AbstractDataStore<GitDataStore> {
     protected void recursiveCopyAndAdd(Git git, File from, File toDir, String path, boolean useToDirAsDestination) throws GitAPIException, IOException {
         assertValid();
         String name = from.getName();
-        String pattern = path + (path.length() > 0 ? "/" : "") + name;
+        String pattern = path + (path.length() > 0 && !path.endsWith(File.separator) ? File.separator : "") + name;
         File toFile = new File(toDir, name);
 
         if (from.isDirectory()) {
@@ -1100,7 +1107,7 @@ public class GitDataStore extends AbstractDataStore<GitDataStore> {
         } else {
             Files.copy(from, toFile);
         }
-        git.add().addFilepattern(pattern).call();
+        git.add().addFilepattern(fixFilePattern(pattern)).call();
     }
 
     /**
@@ -1113,7 +1120,7 @@ public class GitDataStore extends AbstractDataStore<GitDataStore> {
             throw new IllegalStateException("Should only be invoked on the profiles directory but was given file " + from);
         }
         String name = from.getName();
-        String pattern = path + (path.length() > 0 ? "/" : "") + name;
+        String pattern = path + (path.length() > 0 && !path.endsWith(File.separator) ? File.separator : "") + name;
         File[] profiles = from.listFiles();
         File toFile = new File(toDir, name);
         if (profiles != null) {
@@ -1130,7 +1137,7 @@ public class GitDataStore extends AbstractDataStore<GitDataStore> {
                 }
             }
         }
-        git.add().addFilepattern(pattern).call();
+        git.add().addFilepattern(fixFilePattern(pattern)).call();
     }
 
     protected boolean isProfileDirectory(File profileDir) {
@@ -1155,36 +1162,38 @@ public class GitDataStore extends AbstractDataStore<GitDataStore> {
     public String convertProfileIdToDirectory(String profileId) {
         assertValid();
         if (useDirectoriesForProfiles) {
-            return profileId.replace('-', '/') + PROFILE_FOLDER_SUFFIX;
+            return profileId.replace('-', File.separatorChar) + PROFILE_FOLDER_SUFFIX;
         } else {
             return profileId;
         }
     }
 
     protected void pull() {
-        assertValid();
-        try {
-            gitOperation(new GitOperation<Object>() {
-                public Object call(Git git, GitContext context) throws Exception {
-                    return null;
-                }
-            });
-        } catch (Exception e) {
-            LOG.warn("Failed to perform a pull " + e, e);
+        if (isValid()) {
+            try {
+                gitOperation(new GitOperation<Object>() {
+                    public Object call(Git git, GitContext context) throws Exception {
+                        return null;
+                    }
+                });
+            } catch (Exception e) {
+                LOG.warn("Failed to perform a pull " + e, e);
+            }
         }
     }
 
     protected void push() {
-        assertValid();
-        try {
-            gitOperation(new GitOperation<Object>() {
-                public Object call(Git git, GitContext context) throws Exception {
-                    context.requirePush();
-                    return null;
-                }
-            }, false);
-        } catch (Exception e) {
-            LOG.warn("Failed to perform a pull " + e, e);
+        if (isValid()) {
+            try {
+                gitOperation(new GitOperation<Object>() {
+                    public Object call(Git git, GitContext context) throws Exception {
+                        context.requirePush();
+                        return null;
+                    }
+                }, false);
+            } catch (Exception e) {
+                LOG.warn("Failed to perform a pull " + e, e);
+            }
         }
     }
 
@@ -1253,13 +1262,17 @@ public class GitDataStore extends AbstractDataStore<GitDataStore> {
         return props;
     }
 
+    static String fixFilePattern(String pattern) {
+        return pattern.replace(File.separatorChar, '/');
+    }
+
     protected String getFilePattern(File rootDir, File file) throws IOException {
         assertValid();
         String relativePath = Files.getRelativePath(rootDir, file);
-        if (relativePath.startsWith("/")) {
+        if (relativePath.startsWith(File.separator)) {
             relativePath = relativePath.substring(1);
         }
-        return relativePath;
+        return fixFilePattern(relativePath);
     }
 
     /**
@@ -1340,7 +1353,7 @@ public class GitDataStore extends AbstractDataStore<GitDataStore> {
                                     StoredConfig config = repository.getConfig();
                                     String currentUrl = config.getString("remote", "origin", "url");
                                     if (actualUrl != null && !actualUrl.equals(currentUrl)) {
-                                        remoteUrl = actualUrl;
+                                            remoteUrl = actualUrl;
                                         config.setString("remote", "origin", "url", actualUrl);
                                         config.setString("remote", "origin", "fetch", "+refs/heads/*:refs/remotes/origin/*");
                                         config.save();
