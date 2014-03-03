@@ -16,6 +16,7 @@
  */
 package io.fabric8.boot.commands;
 
+import io.fabric8.api.BootstrapComplete;
 import io.fabric8.api.RuntimeProperties;
 import io.fabric8.api.scr.ValidatingReference;
 import io.fabric8.boot.commands.service.JoinAvailable;
@@ -25,6 +26,7 @@ import java.util.Map;
 
 import org.apache.felix.gogo.commands.Action;
 import org.apache.felix.gogo.commands.Command;
+import org.apache.felix.gogo.commands.basic.AbstractCommand;
 import org.apache.felix.scr.annotations.Activate;
 import org.apache.felix.scr.annotations.Component;
 import org.apache.felix.scr.annotations.ConfigurationPolicy;
@@ -38,7 +40,7 @@ import org.osgi.service.cm.ConfigurationAdmin;
 
 @Command(name = JoinCommand.FUNCTION_VALUE, scope = JoinCommand.SCOPE_VALUE, description = CreateCommand.DESCRIPTION, detailedDescription = "classpath:join.txt")
 @Component(immediate = true, policy = ConfigurationPolicy.OPTIONAL)
-@Service({ Function.class, JoinAvailable.class })
+@Service({ Function.class, AbstractCommand.class, JoinAvailable.class })
 @org.apache.felix.scr.annotations.Properties({
         @Property(name = "osgi.command.scope", value = JoinCommand.SCOPE_VALUE),
         @Property(name = "osgi.command.function", value = JoinCommand.FUNCTION_VALUE)
@@ -48,6 +50,9 @@ public class JoinCommand extends AbstractCommandComponent implements JoinAvailab
     public static final String SCOPE_VALUE = "fabric";
     public static final String FUNCTION_VALUE =  "join";
     public static final String DESCRIPTION = "Join a container to an existing fabric";
+
+    @Reference
+    private BootstrapComplete bootComplete;
 
     @Reference(referenceInterface = ConfigurationAdmin.class, bind = "bindConfigAdmin", unbind = "unbindConfigAdmin")
     private final ValidatingReference<ConfigurationAdmin> configAdmin = new ValidatingReference<ConfigurationAdmin>();

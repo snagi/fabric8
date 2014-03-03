@@ -36,6 +36,7 @@ import org.apache.curator.framework.CuratorFramework;
 import org.apache.curator.framework.CuratorFrameworkFactory;
 import org.apache.curator.retry.RetryOneTime;
 import org.apache.felix.gogo.commands.Argument;
+import org.apache.felix.gogo.commands.Command;
 import org.apache.felix.gogo.commands.Option;
 import org.apache.felix.utils.properties.Properties;
 import org.apache.karaf.shell.console.AbstractAction;
@@ -46,6 +47,7 @@ import org.osgi.framework.BundleException;
 import org.osgi.service.cm.Configuration;
 import org.osgi.service.cm.ConfigurationAdmin;
 
+@Command(name = "join", scope = "fabric", description = "Join a container to an existing fabric", detailedDescription = "classpath:join.txt")
 final class JoinAction extends AbstractAction {
 
     @Option(name = "-n", aliases = "--non-managed", multiValued = false, description = "Flag to keep the container non managed")
@@ -128,7 +130,8 @@ final class JoinAction extends AbstractAction {
                 runtimeProperties.setProperty("zookeeper.url", zookeeperUrl);
                 runtimeProperties.setProperty("zookeeper.password", zookeeperPassword);
                 //Rename the container
-                File file = new File(System.getProperty("karaf.base") + "/etc/system.properties");
+                String karafEtc = runtimeProperties.getProperty(SystemProperties.KARAF_ETC);
+                File file = new File(karafEtc, "system.properties");
                 Properties props = new Properties(file);
                 props.put(SystemProperties.KARAF_NAME, containerName);
                 //Also pass zookeeper information so that the container can auto-join after the restart.

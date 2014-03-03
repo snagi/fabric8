@@ -64,9 +64,9 @@ public class EnsembleTest extends FabricEnsembleTest {
                     addToEnsemble(fabricService, cnt1, cnt2);
                     System.err.println(executeCommand("config:proplist --pid io.fabric8.zookeeper"));
 
-                    System.err.println(executeCommand("fabric:container-list"));
-                    System.err.println(executeCommand("fabric:ensemble-list"));
-                    ZooKeeperClusterService zooKeeperClusterService = ServiceLocator.awaitService(ZooKeeperClusterService.class);
+                    System.err.println(tryCommand("fabric:container-list"));
+                    System.err.println(tryCommand("fabric:ensemble-list"));
+                    ZooKeeperClusterService zooKeeperClusterService = ServiceLocator.awaitService(bundleContext, ZooKeeperClusterService.class);
                     Assert.assertNotNull(zooKeeperClusterService);
                     List<String> ensembleContainersResult = zooKeeperClusterService.getEnsembleContainers();
                     Assert.assertTrue(ensembleContainersResult.contains(cnt1.getId()));
@@ -82,9 +82,9 @@ public class EnsembleTest extends FabricEnsembleTest {
                     removeFromEnsemble(fabricService, cnt1, cnt2);
                     System.err.println(executeCommand("config:proplist --pid io.fabric8.zookeeper"));
 
-                    System.err.println(executeCommand("fabric:container-list"));
-                    System.err.println(executeCommand("fabric:ensemble-list"));
-                    ZooKeeperClusterService zooKeeperClusterService = ServiceLocator.awaitService(ZooKeeperClusterService.class);
+                    System.err.println(tryCommand("fabric:container-list"));
+                    System.err.println(tryCommand("fabric:ensemble-list"));
+                    ZooKeeperClusterService zooKeeperClusterService = ServiceLocator.awaitService(bundleContext, ZooKeeperClusterService.class);
                     Assert.assertNotNull(zooKeeperClusterService);
                     List<String> ensembleContainersResult = zooKeeperClusterService.getEnsembleContainers();
                     Assert.assertFalse(ensembleContainersResult.contains(cnt1.getId()));

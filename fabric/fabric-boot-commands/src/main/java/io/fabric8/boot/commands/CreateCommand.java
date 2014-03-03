@@ -16,6 +16,7 @@
  */
 package io.fabric8.boot.commands;
 
+import io.fabric8.api.BootstrapComplete;
 import io.fabric8.api.RuntimeProperties;
 import io.fabric8.api.ZooKeeperClusterBootstrap;
 import io.fabric8.api.ZooKeeperClusterService;
@@ -27,6 +28,7 @@ import java.util.Map;
 
 import org.apache.felix.gogo.commands.Action;
 import org.apache.felix.gogo.commands.Command;
+import org.apache.felix.gogo.commands.basic.AbstractCommand;
 import org.apache.felix.scr.annotations.Activate;
 import org.apache.felix.scr.annotations.Component;
 import org.apache.felix.scr.annotations.ConfigurationPolicy;
@@ -41,7 +43,7 @@ import org.osgi.framework.BundleContext;
 
 @Command(name = CreateCommand.FUNCTION_VALUE, scope = CreateCommand.SCOPE_VALUE, description = CreateCommand.DESCRIPTION, detailedDescription = "classpath:create.txt")
 @Component(immediate = true, policy = ConfigurationPolicy.OPTIONAL)
-@Service({ Function.class, CreateAvailable.class })
+@Service({ Function.class, AbstractCommand.class, CreateAvailable.class })
 @org.apache.felix.scr.annotations.Properties({
         @Property(name = "osgi.command.scope", value = CreateCommand.SCOPE_VALUE),
         @Property(name = "osgi.command.function", value = CreateCommand.FUNCTION_VALUE)
@@ -52,10 +54,11 @@ public final class CreateCommand extends AbstractCommandComponent implements Cre
     public static final String FUNCTION_VALUE =  "create";
     public static final String DESCRIPTION = "Creates a new fabric ensemble (ZooKeeper ensemble) and imports fabric profiles";
 
+    @Reference
+    private BootstrapComplete bootComplete;
+
     @Reference(referenceInterface = ZooKeeperClusterBootstrap.class, bind = "bindBootstrap", unbind = "unbindBootstrap")
     private final ValidatingReference<ZooKeeperClusterBootstrap> bootstrap = new ValidatingReference<ZooKeeperClusterBootstrap>();
-    @Reference(referenceInterface = ZooKeeperClusterService.class, bind = "bindService", unbind = "unbindService", cardinality = ReferenceCardinality.OPTIONAL_UNARY, policy = ReferencePolicy.DYNAMIC)
-    private final ValidatingReference<ZooKeeperClusterService> service = new ValidatingReference<ZooKeeperClusterService>();
     @Reference(referenceInterface = RuntimeProperties.class, bind = "bindRuntimeProperties", unbind = "unbindRuntimeProperties")
     private final ValidatingReference<RuntimeProperties> runtimeProperties = new ValidatingReference<RuntimeProperties>();
 
@@ -84,14 +87,6 @@ public final class CreateCommand extends AbstractCommandComponent implements Cre
 
     void unbindBootstrap(ZooKeeperClusterBootstrap bootstrap) {
         this.bootstrap.unbind(bootstrap);
-    }
-
-    void bindService(ZooKeeperClusterService service) {
-        this.service.bind(service);
-    }
-
-    void unbindService(ZooKeeperClusterService service) {
-        this.service.unbind(service);
     }
 
     void bindRuntimeProperties(RuntimeProperties service) {

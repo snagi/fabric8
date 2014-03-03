@@ -22,14 +22,14 @@ import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.UnknownHostException;
+import java.util.Collections;
 import java.util.Dictionary;
 import java.util.Hashtable;
 import java.util.Map;
 import java.util.Properties;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
+import java.util.Set;
 
+import io.fabric8.api.ContainerOptions;
 import io.fabric8.api.scr.Configurer;
 import io.fabric8.utils.Strings;
 
@@ -43,7 +43,6 @@ import org.apache.felix.scr.annotations.Service;
 import io.fabric8.api.Constants;
 import io.fabric8.api.CreateEnsembleOptions;
 import io.fabric8.api.DataStoreRegistrationHandler;
-import io.fabric8.api.RuntimeProperties;
 import io.fabric8.api.jcip.ThreadSafe;
 import io.fabric8.api.scr.AbstractComponent;
 import io.fabric8.api.scr.ValidatingReference;
@@ -101,6 +100,12 @@ public class BootstrapConfiguration extends AbstractComponent {
     @Property(name = "profiles.auto.import.path", label = "Auto Import Enabled", description = "Flag to automatically import the default profiles", value = "${profiles.auto.import.path}")
     private String profilesAutoImportPath = "fabric/import";
 
+    @Property(name = "profiles", value = "${profiles}")
+    private Set<String> profiles = Collections.emptySet();
+
+    @Property(name = "version", value = "${version}")
+    private String version = ContainerOptions.DEFAULT_VERSION;
+
     @Property(name = "resolver", label = "Global Resolver", description = "The global resolver", value = "${global.resolver}")
     private String resolver = "localhostname";
 
@@ -114,25 +119,24 @@ public class BootstrapConfiguration extends AbstractComponent {
     @Property(name = "zookeeper.url", label = "ZooKeeper URL", description = "The url to an existing zookeeper ensemble", value = "${zookeeper.url}", propertyPrivate = true)
     private String zookeeperUrl;
 
-    private CountDownLatch deactivateLatch = new CountDownLatch(1);
     private ComponentContext componentContext;
 
     @Activate
     void activate(ComponentContext componentContext, Map<String, ?> configuration) throws Exception {
         this.componentContext = componentContext;
-
         configurer.configure(configuration, this);
+
+        org.apache.felix.utils.properties.Properties userProps = new org.apache.felix.utils.properties.Properties();
         // [TODO] abstract access to karaf users.properties
-        org.apache.felix.utils.properties.Properties userProps = null;
         try {
-            userProps = new org.apache.felix.utils.properties.Properties(new File(home + "/etc/users.properties"));
+            userProps.load(new File(home + "/etc/users.properties"));
         } catch (IOException e) {
             LOGGER.warn("Failed to load users from etc/users.properties. No users will be imported.", e);
         }
 
         options = CreateEnsembleOptions.builder().bindAddress(bindAddress).agentEnabled(agentAutoStart).ensembleStart(ensembleAutoStart).zookeeperPassword(zookeeperPassword)
                 .zooKeeperServerPort(zookeeperServerPort).zooKeeperServerConnectionPort(zookeeperServerConnectionPort).autoImportEnabled(profilesAutoImport)
-                .importPath(profilesAutoImportPath).build();
+                .importPath(profilesAutoImportPath).users(userProps).profiles(profiles).version(version).build();
 
         BundleContext bundleContext = componentContext.getBundleContext();
         boolean isCreated = checkCreated(bundleContext);
@@ -148,30 +152,16 @@ public class BootstrapConfiguration extends AbstractComponent {
             markCreated(bundleContext);
         }
 
-        deactivateLatch = new CountDownLatch(1);
         activateComponent();
     }
 
     @Deactivate
     void deactivate() {
         deactivateComponent();
-        deactivateLatch.countDown();
     }
 
     public ComponentContext getComponentContext() {
         return componentContext;
-    }
-
-    public void disable(boolean async) throws TimeoutException {
-        componentContext.disableComponent(COMPONENT_NAME);
-        if (!async) {
-            try {
-                if (!deactivateLatch.await(30, TimeUnit.SECONDS))
-                    throw new TimeoutException("Timeout for deactivating BootstrapConfiguration service");
-            } catch (InterruptedException ex) {
-                // ignore
-            }
-        }
     }
 
     private boolean checkCreated(BundleContext bundleContext) throws IOException {

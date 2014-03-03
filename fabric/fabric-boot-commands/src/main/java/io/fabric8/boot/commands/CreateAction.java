@@ -36,6 +36,7 @@ import java.util.List;
 import java.util.Set;
 
 import org.apache.felix.gogo.commands.Argument;
+import org.apache.felix.gogo.commands.Command;
 import org.apache.felix.gogo.commands.Option;
 import org.apache.felix.utils.properties.Properties;
 import org.apache.karaf.shell.console.AbstractAction;
@@ -43,6 +44,7 @@ import org.osgi.framework.BundleContext;
 
 import com.google.common.base.Strings;
 
+@Command(name = "create", scope = "fabric", description = "Creates a new fabric ensemble (ZooKeeper ensemble) and imports fabric profiles", detailedDescription = "classpath:create.txt")
 final class CreateAction extends AbstractAction {
 
     private static final String GIT_REMOTE_URL = "gitRemoteUrl";
@@ -54,7 +56,7 @@ final class CreateAction extends AbstractAction {
     @Option(name = "--no-import", description = "Disable the import of the sample registry data")
     private boolean noImport;
     @Option(name = "--import-dir", description = "Directory of files to import into the newly created ensemble")
-    private String importDir = getDefaultImportDir();
+    private String importDir;
     @Option(name = "-v", aliases = {"--verbose"}, description = "Flag to enable verbose output of files being imported")
     boolean verbose = false;
     @Option(name = "-g", aliases = {"--global-resolver"}, description = "The global resolver policy, which becomes the default resolver policy applied to all new containers created in this fabric. Possible values are: localip, localhostname, publicip, publichostname, manualip. Default is localhostname.")
@@ -119,6 +121,9 @@ final class CreateAction extends AbstractAction {
         this.bundleContext = bundleContext;
         this.bootstrap = bootstrap;
         this.runtimeProperties = runtimeProperties;
+
+        String karafHome = runtimeProperties.getProperty(SystemProperties.KARAF_HOME);
+        importDir = karafHome + File.separator + "fabric" + File.separator + "import";
     }
 
     protected Object doExecute() throws Exception {
@@ -202,7 +207,8 @@ final class CreateAction extends AbstractAction {
         newUser = newUser != null ? newUser : ShellUtils.retrieveFabricUser(session);
         newUserPassword = newUserPassword != null ? newUserPassword : ShellUtils.retrieveFabricUserPassword(session);
 
-        Properties userProps = new Properties(new File(System.getProperty("karaf.home") + "/etc/users.properties"));
+        String karafEtc = runtimeProperties.getProperty(SystemProperties.KARAF_ETC);
+        Properties userProps = new Properties(new File(karafEtc, "users.properties"));
 
         if (userProps.isEmpty()) {
             String[] credentials = promptForNewUser(newUser, newUserPassword);
@@ -231,7 +237,7 @@ final class CreateAction extends AbstractAction {
         if (generateZookeeperPassword) {
             //do nothing use the generated password.
         } else if (zookeeperPassword == null) {
-            zookeeperPassword = System.getProperty(CreateEnsembleOptions.ZOOKEEPER_PASSWORD, newUserPassword);
+            zookeeperPassword = runtimeProperties.getProperty(CreateEnsembleOptions.ZOOKEEPER_PASSWORD, newUserPassword);
             builder.zookeeperPassword(zookeeperPassword);
         } else {
             builder.zookeeperPassword(zookeeperPassword);
@@ -242,12 +248,7 @@ final class CreateAction extends AbstractAction {
                                                .build();
 
         if (containers.size() == 1 && containers.contains(karafName)) {
-            ServiceProxy<ZooKeeperClusterBootstrap> serviceProxy = ServiceProxy.createServiceProxy(bundleContext, ZooKeeperClusterBootstrap.class);
-            try {
-                serviceProxy.getService().create(options);
-            } finally {
-                serviceProxy.close();
-            }
+            bootstrap.create(options);
         } else {
             ServiceProxy<ZooKeeperClusterService> serviceProxy = ServiceProxy.createServiceProxy(bundleContext, ZooKeeperClusterService.class);
             try {
@@ -309,10 +310,6 @@ final class CreateAction extends AbstractAction {
         response[0] = user;
         response[1] = password;
         return response;
-    }
-
-    private static String getDefaultImportDir() {
-        return System.getProperty("karaf.home", ".") + File.separatorChar + "fabric" + File.separatorChar + "import";
     }
 
     public String getBindAddress() {
