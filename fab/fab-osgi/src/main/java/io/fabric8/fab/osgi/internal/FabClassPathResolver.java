@@ -1,20 +1,18 @@
 /**
- * Copyright (C) FuseSource, Inc.
- * http://fusesource.com
+ *  Copyright 2005-2014 Red Hat, Inc.
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ *  Red Hat licenses this file to you under the Apache License, version
+ *  2.0 (the "License"); you may not use this file except in compliance
+ *  with the License.  You may obtain a copy of the License at
  *
- *    http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or
+ *  implied.  See the License for the specific language governing
+ *  permissions and limitations under the License.
  */
-
 package io.fabric8.fab.osgi.internal;
 
 import java.io.File;
@@ -32,7 +30,7 @@ import java.util.zip.ZipEntry;
 
 import aQute.lib.osgi.Analyzer;
 import org.apache.felix.utils.version.VersionCleaner;
-import org.fusesource.common.util.*;
+import io.fabric8.common.util.*;
 import io.fabric8.fab.*;
 import io.fabric8.fab.osgi.ServiceConstants;
 import io.fabric8.fab.osgi.util.FeatureCollector;
@@ -47,9 +45,9 @@ import static io.fabric8.fab.ModuleDescriptor.FAB_MODULE_DESCRIPTION;
 import static io.fabric8.fab.ModuleDescriptor.FAB_MODULE_ID;
 import static io.fabric8.fab.ModuleDescriptor.FAB_MODULE_NAME;
 import static io.fabric8.fab.ModuleDescriptor.FAB_MODULE_PROPERTIES;
-import static org.fusesource.common.util.Strings.defaultIfEmpty;
-import static org.fusesource.common.util.Strings.emptyIfNull;
-import static org.fusesource.common.util.Strings.join;
+import static io.fabric8.common.util.Strings.defaultIfEmpty;
+import static io.fabric8.common.util.Strings.emptyIfNull;
+import static io.fabric8.common.util.Strings.join;
 
 /**
  * Resolves the classpath using the FAB resolving mechanism

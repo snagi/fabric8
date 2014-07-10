@@ -1,21 +1,21 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!--
-  Copyright (C) FuseSource, Inc.
-    http://fusesource.com
 
-    Licensed under the Apache License, Version 2.0 (the "License");
-    you may not use this file except in compliance with the License.
-    You may obtain a copy of the License at
+     Copyright 2005-2014 Red Hat, Inc.
 
-       http://www.apache.org/licenses/LICENSE-2.0
+     Red Hat licenses this file to you under the Apache License, version
+     2.0 (the "License"); you may not use this file except in compliance
+     with the License.  You may obtain a copy of the License at
 
-    Unless required by applicable law or agreed to in writing, software
-    distributed under the License is distributed on an "AS IS" BASIS,
-    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-    See the License for the specific language governing permissions and
-    limitations under the License.
-  -->
+        http://www.apache.org/licenses/LICENSE-2.0
 
+     Unless required by applicable law or agreed to in writing, software
+     distributed under the License is distributed on an "AS IS" BASIS,
+     WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or
+     implied.  See the License for the specific language governing
+     permissions and limitations under the License.
+
+-->
 <project xmlns="http://maven.apache.org/POM/4.0.0"
          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
@@ -24,19 +24,19 @@
     <parent>
         <groupId>io.fabric8</groupId>
         <artifactId>testing</artifactId>
-        <version>1.0.0-SNAPSHOT</version>
+        <version>1.1.0-SNAPSHOT</version>
     </parent>
 
-    <groupId>org.fusesource.tooling.testing</groupId>
+    <groupId>io.fabric8.tooling.testing</groupId>
     <artifactId>pax-exam-karaf</artifactId>
     <packaging>bundle</packaging>
 
-    <name>FuseSource :: Tooling :: Testing :: Pax Exam Karaf</name>
+    <name>Fabric8 :: Tooling :: Testing :: Pax Exam Karaf</name>
     
     <properties>
         <fuse.osgi.dynamic>*,org.apache.felix.service.*;status=provisional</fuse.osgi.dynamic>
         <fuse.osgi.export>
-            org.fusesource.tooling.testing.pax.exam.karaf*;version=${project.version};-noimport:=true,
+            io.fabric8.tooling.testing.pax.exam.karaf*;version=${project.version};-noimport:=true,
         </fuse.osgi.export>
         <fuse.osgi.import></fuse.osgi.import>
     </properties>
@@ -48,10 +48,6 @@
         </dependency>
         <dependency>
             <groupId>org.ops4j.pax.url</groupId>
-            <artifactId>pax-url-mvn</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>org.ops4j.pax.url</groupId>
             <artifactId>pax-url-aether</artifactId>
         </dependency>
         <dependency>
@@ -59,20 +55,20 @@
             <artifactId>org.apache.karaf.features.core</artifactId>
         </dependency>
         <dependency>
-            <groupId>org.apache.karaf.tooling.exam</groupId>
-            <artifactId>org.apache.karaf.tooling.exam.options</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>org.apache.karaf.tooling.exam</groupId>
-            <artifactId>org.apache.karaf.tooling.exam.container</artifactId>
-        </dependency>
-        <dependency>
             <groupId>org.ops4j.pax.exam</groupId>
             <artifactId>pax-exam-junit4</artifactId>
         </dependency>
         <dependency>
+            <groupId>org.ops4j.pax.exam</groupId>
+            <artifactId>pax-exam-container-karaf</artifactId>
+        </dependency>
+        <dependency>
             <groupId>junit</groupId>
             <artifactId>junit</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.geronimo.specs</groupId>
+            <artifactId>geronimo-atinject_1.0_spec</artifactId>
         </dependency>
     </dependencies>
 

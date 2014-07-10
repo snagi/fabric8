@@ -1,5 +1,5 @@
-/*
- * Copyright 2010 Red Hat, Inc.
+/**
+ *  Copyright 2005-2014 Red Hat, Inc.
  *
  *  Red Hat licenses this file to you under the Apache License, version
  *  2.0 (the "License"); you may not use this file except in compliance
@@ -50,7 +50,7 @@ public class ProfileWorkItemRepositoryFactory extends AbstractComponent implemen
     public static final String SCHME = TYPE;
     public static final String ID = ID_PREFIX + TYPE;
 
-    @Property(name = "name", label = "Container Name", description = "The name of the container", value = "${karaf.name}", propertyPrivate = true)
+    @Property(name = "name", label = "Container Name", description = "The name of the container", value = "${runtime.id}", propertyPrivate = true)
     private String name;
     @Reference
     private Configurer configurer;

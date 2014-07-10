@@ -1,18 +1,17 @@
 /**
- * Copyright (C) FuseSource, Inc.
- * http://fusesource.com
+ *  Copyright 2005-2014 Red Hat, Inc.
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ *  Red Hat licenses this file to you under the Apache License, version
+ *  2.0 (the "License"); you may not use this file except in compliance
+ *  with the License.  You may obtain a copy of the License at
  *
- *    http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or
+ *  implied.  See the License for the specific language governing
+ *  permissions and limitations under the License.
  */
 package io.fabric8.zookeeper.bootstrap;
 
@@ -40,27 +39,30 @@ import io.fabric8.api.CreateEnsembleOptions;
 import io.fabric8.api.DataStore;
 import io.fabric8.api.DataStoreTemplate;
 import io.fabric8.api.FabricException;
-import io.fabric8.api.RuntimeProperties;
+import io.fabric8.utils.PasswordEncoder;
 import io.fabric8.utils.DataStoreUtils;
-import io.fabric8.utils.SystemProperties;
 import io.fabric8.zookeeper.ZkPath;
 import io.fabric8.zookeeper.curator.CuratorACLManager;
 import org.osgi.framework.Bundle;
 import org.osgi.framework.BundleContext;
 import org.osgi.framework.FrameworkUtil;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class DataStoreBootstrapTemplate implements DataStoreTemplate {
 
     private final String connectionUrl;
     private final CreateEnsembleOptions options;
     private final String name;
-    private final String home;
+    private final File homeDir;
     private final String version;
     private final CuratorACLManager aclManager = new CuratorACLManager();
 
-    public DataStoreBootstrapTemplate(String name, String home, String connectionUrl, CreateEnsembleOptions options) {
+    private static final Logger LOGGER = LoggerFactory.getLogger(DataStoreBootstrapTemplate.class);
+    
+    public DataStoreBootstrapTemplate(String name, File homeDir, String connectionUrl, CreateEnsembleOptions options) {
         this.name = name;
-        this.home = home;
+        this.homeDir = homeDir;
         this.connectionUrl = connectionUrl;
         this.options = options;
         this.version = options.getVersion();
@@ -92,7 +94,7 @@ public class DataStoreBootstrapTemplate implements DataStoreTemplate {
             // Make the import path absolute
             File importPath = new File(options.getImportPath());
             if (!importPath.isAbsolute()) {
-                importPath = new File(home, options.getImportPath());
+                importPath = new File(homeDir, options.getImportPath());
             }
 
             // Import data into the DataStore
@@ -108,7 +110,7 @@ public class DataStoreBootstrapTemplate implements DataStoreTemplate {
 
 
             setData(curator, ZkPath.CONFIG_ENSEMBLE_URL.getPath(), "${zk:" + name + "/ip}:" + zooKeeperServerConnectionPort);
-            setData(curator, ZkPath.CONFIG_ENSEMBLE_PASSWORD.getPath(), options.getZookeeperPassword());
+            setData(curator, ZkPath.CONFIG_ENSEMBLE_PASSWORD.getPath(), PasswordEncoder.encode(options.getZookeeperPassword()));
 
             Properties zkProps = new Properties();
             zkProps.setProperty("zookeeper.url", "${zk:" + ZkPath.CONFIG_ENSEMBLE_URL.getPath() + "}");
@@ -126,7 +128,7 @@ public class DataStoreBootstrapTemplate implements DataStoreTemplate {
             ensembleProps.put("syncLimit", String.valueOf(options.getZooKeeperServerSyncLimit()));
             ensembleProps.put("dataDir", options.getZooKeeperServerDataDir() + File.separator + "0000");
 
-            loadPropertiesFrom(ensembleProps, importPath + "/fabric/configs/versions/1.0/profiles/default/io.fabric8.zookeeper.server.properties");
+            loadPropertiesFrom(ensembleProps, importPath + "/fabric/profiles/default.profile/io.fabric8.zookeeper.server.properties");
             dataStore.setFileConfiguration(version, ensembleProfile, "io.fabric8.zookeeper.server-0000.properties", DataStoreUtils.toBytes(ensembleProps));
 
             // configure this server in the ensemble
@@ -173,7 +175,7 @@ public class DataStoreBootstrapTemplate implements DataStoreTemplate {
             createDefault(curator, "/fabric/authentication/domain", "karaf");
 
             createDefault(curator, ZkPath.AUTHENTICATION_CRYPT_ALGORITHM.getPath(), "PBEWithMD5AndDES");
-            createDefault(curator, ZkPath.AUTHENTICATION_CRYPT_PASSWORD.getPath(), options.getZookeeperPassword());
+            createDefault(curator, ZkPath.AUTHENTICATION_CRYPT_PASSWORD.getPath(), PasswordEncoder.encode(options.getZookeeperPassword()));
 
             //Ensure ACLs are from the beggining of the fabric tree.
             aclManager.fixAcl(curator, "/fabric", true);
@@ -218,11 +220,10 @@ public class DataStoreBootstrapTemplate implements DataStoreTemplate {
      * Adds users to the Zookeeper registry.
      */
     private EncryptionSupport addUsersToZookeeper(CuratorFramework curator, Map<String, String> users) throws Exception {
-        Pattern p = Pattern.compile("(.+),(.+)");
+        Pattern p = Pattern.compile("([^,]+),(.+)");
         Map<String, Object> options = new HashMap<String, Object>();
         options.put("encryption.prefix", "{CRYPT}");
         options.put("encryption.suffix", "{CRYPT}");
-        options.put("encryption.enabled", "true");
         options.put("encryption.enabled", "true");
         options.put("encryption.algorithm", "MD5");
         options.put("encryption.encoding", "hexadecimal");
@@ -251,8 +252,8 @@ public class DataStoreBootstrapTemplate implements DataStoreTemplate {
                         password = encryptionSupport.getEncryptionPrefix() + encryption.encryptPassword(m.group(1)).trim() + encryptionSupport.getEncryptionSuffix();
                     }
                 }
-                String role = m.group(2).trim();
-                sb.append(user).append("=").append(password).append(",").append(role).append("\n");
+                String roles = m.group(2).trim();
+                sb.append(user).append("=").append(password).append(",").append(roles).append("\n");
             }
         }
         String allUsers = sb.toString();

@@ -1,3 +1,20 @@
+<!--
+
+     Copyright 2005-2014 Red Hat, Inc.
+
+     Red Hat licenses this file to you under the Apache License, version
+     2.0 (the "License"); you may not use this file except in compliance
+     with the License.  You may obtain a copy of the License at
+
+        http://www.apache.org/licenses/LICENSE-2.0
+
+     Unless required by applicable law or agreed to in writing, software
+     distributed under the License is distributed on an "AS IS" BASIS,
+     WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or
+     implied.  See the License for the specific language governing
+     permissions and limitations under the License.
+
+-->
 <!-- Copyright (c) 2013 Red Hat, Inc. Distributed under license by Red Hat, 
 	Inc. All rights reserved. This program is made available under the terms 
 	of the Eclipse Public License v1.0 which accompanies this distribution, and 
@@ -9,22 +26,25 @@
     <parent>
         <artifactId>fabric-project</artifactId>
         <groupId>io.fabric8</groupId>
-        <version>1.0.0-SNAPSHOT</version>
+        <version>1.1.0-SNAPSHOT</version>
     </parent>
 
     <modelVersion>4.0.0</modelVersion>
 
     <artifactId>fabric-client</artifactId>
 
-    <name>[TODO]${project.artifactId}</name>
-    <description>Fabric8 :: Client (using Jolokia)</description>
+    <name>Fabric8 :: Client (using Jolokia)</name>
 
     <packaging>bundle</packaging>
 
     <dependencies>
         <dependency>
-            <groupId>org.codehaus.jackson</groupId>
-            <artifactId>jackson-mapper-asl</artifactId>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-core</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-databind</artifactId>
         </dependency>
         <dependency>
             <groupId>org.jolokia</groupId>
@@ -66,7 +86,7 @@
                 <configuration>
                     <instructions>
                         <Bundle-SymbolicName>${project.groupId}.${project.artifactId}</Bundle-SymbolicName>
-                        <Bundle-Name>Fuse Fabric Jolokia Facade</Bundle-Name>
+                        <Bundle-Name>Fabric Jolokia Facade</Bundle-Name>
                         <Export-Package>
                             io.fabric8.jolokia.facade*
                         </Export-Package>

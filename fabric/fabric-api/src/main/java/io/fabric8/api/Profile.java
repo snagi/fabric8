@@ -1,18 +1,17 @@
 /**
- * Copyright (C) FuseSource, Inc.
- * http://fusesource.com
+ *  Copyright 2005-2014 Red Hat, Inc.
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ *  Red Hat licenses this file to you under the Apache License, version
+ *  2.0 (the "License"); you may not use this file except in compliance
+ *  with the License.  You may obtain a copy of the License at
  *
- *    http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or
+ *  implied.  See the License for the specific language governing
+ *  permissions and limitations under the License.
  */
 package io.fabric8.api;
 
@@ -85,6 +84,28 @@ public interface Profile extends Comparable<Profile>, HasId {
     List<String> getFeatures();
     List<String> getRepositories();
     List<String> getOverrides();
+    List<String> getOptionals();
+
+    /**
+     * Returns the URL of the profile's icon, relative to the Fabric REST API or null if no icon could be found
+     */
+    String getIconURL();
+
+    /**
+     * Returns the summary markdown text of the profile or null if none could be found. Typically returns the "Summary.md" file contents as a String
+     */
+    String getSummaryMarkdown();
+
+
+    /**
+     * Returns the list of tags that are applied to this profile. If none is configured then it defaults to the parent folders of the profile ID.
+     */
+    List<String> getTags();
+
+    /**
+     * Updates the tags on this profile
+     */
+    void setTags(List<String> tags);
 
     /**
      * Returns the configuration file names that are available on this profile
@@ -135,6 +156,11 @@ public interface Profile extends Comparable<Profile>, HasId {
     void setConfiguration(String pid, Map<String, String> configuration);
 
     /**
+     * Sets the configuration file name to the given data
+     */
+    void setConfigurationFile(String fileName, byte[] data);
+
+    /**
      * Gets profile with configuration slitted with parents.
      *
      * @return Calculated profile or null if instance is already a calculated overlay.
@@ -168,6 +194,8 @@ public interface Profile extends Comparable<Profile>, HasId {
     void setRepositories(List<String> values);
 
     void setOverrides(List<String> values);
+
+    void setOptionals(List<String> values);
 
     boolean configurationEquals(Profile other);
 

@@ -1,8 +1,24 @@
+/**
+ *  Copyright 2005-2014 Red Hat, Inc.
+ *
+ *  Red Hat licenses this file to you under the Apache License, version
+ *  2.0 (the "License"); you may not use this file except in compliance
+ *  with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or
+ *  implied.  See the License for the specific language governing
+ *  permissions and limitations under the License.
+ */
 package io.fabric8.jolokia.facade.facades;
 
 import io.fabric8.api.Container;
 import io.fabric8.api.HasId;
 import io.fabric8.api.Profile;
+import io.fabric8.api.Profiles;
 import io.fabric8.jolokia.facade.utils.Helpers;
 import org.jolokia.client.J4pClient;
 import org.jolokia.client.exception.J4pException;
@@ -15,7 +31,6 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * @author Stan Lewis
  */
 public class ProfileFacade implements Profile, HasId {
 
@@ -64,6 +79,11 @@ public class ProfileFacade implements Profile, HasId {
     }
 
     @Override
+    public String getSummaryMarkdown() {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
     public Profile[] getParents() {
         List<String> profiles = getFieldValue("parents");
 //        JSONArray profiles = getFieldValue("parents");
@@ -84,6 +104,11 @@ public class ProfileFacade implements Profile, HasId {
             parentIds.add(profile.getId());
         }
         Helpers.exec(j4p, "changeProfileParents(java.lang.String, java.lang.String, java.util.List)", versionId, id, parentIds);
+    }
+
+    @Override
+    public String getIconURL() {
+        return Profiles.getProfileIconURL(getParents());
     }
 
     @Override
@@ -117,6 +142,11 @@ public class ProfileFacade implements Profile, HasId {
     }
 
     @Override
+    public List<String> getTags() {
+        return getFieldValue("tags");
+    }
+
+    @Override
     public List<String> getFabs() {
         return getFieldValue("fabs");
     }
@@ -134,6 +164,11 @@ public class ProfileFacade implements Profile, HasId {
     @Override
     public List<String> getOverrides() {
         return getFieldValue("overrides");
+    }
+
+    @Override
+    public List<String> getOptionals() {
+        return getFieldValue("optionals");
     }
 
     @Override
@@ -202,6 +237,11 @@ public class ProfileFacade implements Profile, HasId {
     }
 
     @Override
+    public void setTags(List<String> strings) {
+        Void v = Helpers.exec(j4p, "setProfileTags(java.lang.String, java.lang.String, java.util.List)", versionId, id, strings);
+    }
+
+    @Override
     public void setFabs(List<String> strings) {
         Void v = Helpers.exec(j4p, "setProfileFabs(java.lang.String, java.lang.String, java.util.List)", versionId, id, strings);
     }
@@ -219,6 +259,11 @@ public class ProfileFacade implements Profile, HasId {
     @Override
     public void setOverrides(List<String> strings) {
         Void v = Helpers.exec(j4p, "setProfileOverrides(java.lang.String, java.lang.String, java.util.List)", versionId, id, strings);
+    }
+
+    @Override
+    public void setOptionals(List<String> strings) {
+        Void v = Helpers.exec(j4p, "setProfileOptionals(java.lang.String, java.lang.String, java.util.List)", versionId, id, strings);
     }
 
     @Override
@@ -282,5 +327,10 @@ public class ProfileFacade implements Profile, HasId {
             configurations.put(pid, configuration);
             setConfigurations(configurations);
         }
+    }
+
+    @Override
+    public void setConfigurationFile(String fileName, byte[] data) {
+        throw new UnsupportedOperationException("The method is not yet implemented.");
     }
 }

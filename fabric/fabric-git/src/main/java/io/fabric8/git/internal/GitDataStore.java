@@ -1,41 +1,46 @@
 /**
- * Copyright (C) FuseSource, Inc.
- * http://fusesource.com
+ *  Copyright 2005-2014 Red Hat, Inc.
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ *  Red Hat licenses this file to you under the Apache License, version
+ *  2.0 (the "License"); you may not use this file except in compliance
+ *  with the License.  You may obtain a copy of the License at
  *
- *    http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or
+ *  implied.  See the License for the specific language governing
+ *  permissions and limitations under the License.
  */
 package io.fabric8.git.internal;
 
-import static io.fabric8.zookeeper.utils.ZooKeeperUtils.exists;
-import static io.fabric8.zookeeper.utils.ZooKeeperUtils.generateContainerToken;
-import static io.fabric8.zookeeper.utils.ZooKeeperUtils.getContainerLogin;
-import static io.fabric8.zookeeper.utils.ZooKeeperUtils.getPropertiesAsMap;
-import static io.fabric8.zookeeper.utils.ZooKeeperUtils.getStringData;
-import static io.fabric8.zookeeper.utils.ZooKeeperUtils.setData;
-import static io.fabric8.zookeeper.utils.ZooKeeperUtils.setPropertiesAsMap;
-
 import java.io.File;
+import java.io.FileFilter;
+import java.io.FileInputStream;
+import java.io.FilenameFilter;
 import java.io.IOException;
+import java.io.InputStream;
+import java.net.InetSocketAddress;
+import java.net.MalformedURLException;
+import java.net.Proxy;
+import java.net.ProxySelector;
+import java.net.SocketAddress;
+import java.net.URI;
+import java.net.URL;
 import java.nio.charset.Charset;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.SortedSet;
+import java.util.StringTokenizer;
 import java.util.TreeSet;
 import java.util.concurrent.CopyOnWriteArraySet;
 import java.util.concurrent.Executors;
@@ -43,7 +48,30 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 
+import io.fabric8.api.DataStore;
+import io.fabric8.api.FabricException;
+import io.fabric8.api.FabricRequirements;
+import io.fabric8.api.Profiles;
+import io.fabric8.api.RuntimeProperties;
+import io.fabric8.api.jcip.ThreadSafe;
+import io.fabric8.api.scr.ValidatingReference;
 import io.fabric8.api.visibility.VisibleForTesting;
+import io.fabric8.common.util.Files;
+import io.fabric8.common.util.Strings;
+import io.fabric8.common.util.Zips;
+import io.fabric8.git.GitListener;
+import io.fabric8.git.GitProxyService;
+import io.fabric8.git.GitService;
+import io.fabric8.internal.RequirementsJson;
+import io.fabric8.service.AbstractDataStore;
+import io.fabric8.utils.DataStoreUtils;
+import io.fabric8.zookeeper.ZkPath;
+import org.apache.commons.io.filefilter.WildcardFileFilter;
+import org.apache.curator.framework.CuratorFramework;
+import org.apache.curator.framework.recipes.shared.SharedCount;
+import org.apache.curator.framework.recipes.shared.SharedCountListener;
+import org.apache.curator.framework.recipes.shared.SharedCountReader;
+import org.apache.curator.framework.state.ConnectionState;
 import org.apache.felix.scr.annotations.Component;
 import org.apache.felix.scr.annotations.Property;
 import org.apache.felix.utils.properties.Properties;
@@ -66,27 +94,22 @@ import org.eclipse.jgit.revwalk.RevWalk;
 import org.eclipse.jgit.transport.CredentialsProvider;
 import org.eclipse.jgit.transport.FetchResult;
 import org.eclipse.jgit.transport.PushResult;
+import org.eclipse.jgit.transport.RefSpec;
 import org.eclipse.jgit.transport.UsernamePasswordCredentialsProvider;
 import org.eclipse.jgit.treewalk.AbstractTreeIterator;
 import org.eclipse.jgit.treewalk.CanonicalTreeParser;
-import io.fabric8.api.DataStore;
-import io.fabric8.api.FabricException;
-import io.fabric8.api.FabricRequirements;
-import io.fabric8.api.RuntimeProperties;
-import io.fabric8.api.jcip.ThreadSafe;
-import io.fabric8.api.scr.ValidatingReference;
-import io.fabric8.git.GitListener;
-import io.fabric8.git.GitService;
-import io.fabric8.internal.RequirementsJson;
-import io.fabric8.service.AbstractDataStore;
-import io.fabric8.utils.DataStoreUtils;
-import io.fabric8.utils.Files;
-import io.fabric8.utils.Strings;
-import io.fabric8.zookeeper.ZkPath;
 import org.gitective.core.CommitUtils;
 import org.gitective.core.RepositoryUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import static io.fabric8.zookeeper.utils.ZooKeeperUtils.exists;
+import static io.fabric8.zookeeper.utils.ZooKeeperUtils.generateContainerToken;
+import static io.fabric8.zookeeper.utils.ZooKeeperUtils.getContainerLogin;
+import static io.fabric8.zookeeper.utils.ZooKeeperUtils.getPropertiesAsMap;
+import static io.fabric8.zookeeper.utils.ZooKeeperUtils.getStringData;
+import static io.fabric8.zookeeper.utils.ZooKeeperUtils.setData;
+import static io.fabric8.zookeeper.utils.ZooKeeperUtils.setPropertiesAsMap;
 
 /**
  * A git based implementation of {@link DataStore} which stores the profile configuration
@@ -100,11 +123,11 @@ public class GitDataStore extends AbstractDataStore<GitDataStore> {
     private static final String MASTER_BRANCH = "master";
     private static final String CONFIG_ROOT_DIR = "fabric";
 
-    public static final String GIT_PULL_PERIOD = "gitPullPeriod";
+    public static final String GIT_PULL_PERIOD = "gitPushInterval";
     public static final String GIT_REMOTE_URL = "gitRemoteUrl";
     public static final String GIT_REMOTE_USER = "gitRemoteUser";
     public static final String GIT_REMOTE_PASSWORD = "gitRemotePassword";
-    public static final String[] SUPPORTED_CONFIGURATION = { DATASTORE_TYPE_PROPERTY, GIT_REMOTE_URL, GIT_REMOTE_USER, GIT_REMOTE_PASSWORD, GIT_PULL_PERIOD };
+    public static final String[] SUPPORTED_CONFIGURATION = {DATASTORE_TYPE_PROPERTY, GIT_REMOTE_URL, GIT_REMOTE_USER, GIT_REMOTE_PASSWORD, GIT_PULL_PERIOD};
 
     public static final String CONFIGS = CONFIG_ROOT_DIR;
     public static final String CONFIGS_PROFILES = CONFIGS + File.separator + "profiles";
@@ -113,14 +136,8 @@ public class GitDataStore extends AbstractDataStore<GitDataStore> {
     public static final String TYPE = "git";
     public static final int GIT_COMMIT_SHORT_LENGTH = 7;
 
-    /**
-     * Should we convert a directory of profiles called "foo-bar" into a directory "foo/bar.profile" structure to use
-     * the file system better, to better organise profiles into folders and make it easier to work with profiles in the wiki
-     */
-    public static final boolean useDirectoriesForProfiles = true;
-    public static final String PROFILE_FOLDER_SUFFIX = ".profile";
-
     private final ValidatingReference<GitService> gitService = new ValidatingReference<GitService>();
+    private final ValidatingReference<GitProxyService> gitProxyService = new ValidatingReference<GitProxyService>();
 
     private final ScheduledExecutorService threadPool = Executors.newSingleThreadScheduledExecutor();
 
@@ -128,20 +145,41 @@ public class GitDataStore extends AbstractDataStore<GitDataStore> {
     private final Set<String> versions = new CopyOnWriteArraySet<String>();
     private final GitListener gitListener = new GitDataStoreListener();
     private final AtomicReference<String> remoteRef = new AtomicReference<String>("origin");
+    private ProxySelector defaultProxySelector;
 
     private String remoteUrl;
     private String lastFetchWarning;
+    private volatile boolean initialPull;
+    private SharedCount counter;
 
     @Property(name = "configuredUrl", label = "External Git Repository URL", description = "The URL to a fixed external git repository")
     private String configuredUrl;
-    @Property(name = "gitPullPeriod", label = "Pull Interval", description = "The interval between pulls", intValue = 1000)
-    private long gitPullPeriod = 1000;
-
+    @Property(name = "gitPushInterval", label = "Push Interval", description = "The interval between push (value in millis)")
+    private long gitPushInterval = 60 * 1000L;
+    // option to use old behavior without the shared counter
+    @Property(name = "gitPullOnPush", label = "Pull before push", description = "Whether to do a push before pull")
+    private boolean gitPullOnPush = false;
+    @Property(name = "gitTimeout", label = "Timeout", description = "Timeout connecting to remote git server (value in seconds)")
+    private int gitTimeout = 10;
+    @Property(name = "importDir", label = "Import Directory", description = "Directory to import additional profiles", value = "fabric")
+    private String importDir = "fabric";
 
     @Override
     protected void activateInternal() {
+        initialPull = false;
+
         try {
             super.activateInternal();
+
+            if (gitProxyService.getOptional() != null) {
+                // authenticator disabled, until properly tested it does not affect others, as Authenticator is static in the JVM
+                // Authenticator.setDefault(new FabricGitLocalHostAuthenticator(gitProxyService.getOptional()));
+                defaultProxySelector = ProxySelector.getDefault();
+                ProxySelector fabricProxySelector = new FabricGitLocalHostProxySelector(defaultProxySelector, gitProxyService.getOptional());
+                ProxySelector.setDefault(fabricProxySelector);
+                LOG.info("Setting up FabricProxySelector: {}", fabricProxySelector);
+            }
+
             // [FIXME] Why can we not rely on the injected GitService
             GitService optionalService = gitService.getOptional();
 
@@ -155,22 +193,76 @@ public class GitDataStore extends AbstractDataStore<GitDataStore> {
             }
 
             forceGetVersions();
-            LOG.info("starting to pull from remote repository every {} millis", gitPullPeriod);
+
+            // import additional profiles
+            Path homePath = getRuntimeProperties().getHomePath();
+            Path dir = homePath.resolve(importDir);
+            importFromFilesystem(dir);
+
+            LOG.info("Starting to push to remote git repository every {} millis", gitPushInterval);
             threadPool.scheduleWithFixedDelay(new Runnable() {
                 @Override
                 public void run() {
-                    LOG.debug("Performing timed pull");
-                    pull();
-                    //a commit that failed to push for any reason, will not get pushed until the next commit.
-                    //periodically pushing can address this issue.
-                    push();
+                    try {
+                        // must do an initial pull to get data
+                        if (!initialPull) {
+                            LOG.trace("Performing initial pull");
+                            pull();
+                            initialPull = true;
+                            LOG.debug("Performing initial pull done");
+                        }
+
+                        if (gitPullOnPush) {
+                            LOG.trace("Performing timed pull");
+                            pull();
+                            LOG.debug("Performed timed pull done");
+                        }
+                        //a commit that failed to push for any reason, will not get pushed until the next commit.
+                        //periodically pushing can address this issue.
+                        LOG.trace("Performing timed push");
+                        push();
+                        LOG.debug("Performed timed push done");
+                    } catch (Throwable e) {
+                        LOG.debug("Error during performed timed pull/push due " + e.getMessage(), e);
+                        // we dont want stacktrace in WARNs
+                        LOG.warn("Error during performed timed pull/push due " + e.getMessage() + ". This exception is ignored.");
+                    }
                 }
+
                 @Override
                 public String toString() {
-                    return "TimedPullTask";
+                    return "TimedPushTask";
                 }
-            }, gitPullPeriod, gitPullPeriod, TimeUnit.MILLISECONDS);
-        } catch (Exception ex) {
+            }, 1000, gitPushInterval, TimeUnit.MILLISECONDS);
+            // do the initial pull at first so just wait 1 sec
+
+            if (!gitPullOnPush) {
+                LOG.info("Using ZooKeeper SharedCount to react when master git repo is changed, so we can do a git pull to the local git repo.");
+                counter = new SharedCount(getCurator(), ZkPath.GIT_TRIGGER.getPath(), 0);
+                counter.addListener(new SharedCountListener() {
+                    @Override
+                    public void countHasChanged(SharedCountReader sharedCountReader, int value) throws Exception {
+                        LOG.debug("Watch counter updated to " + value + ", doing a pull");
+                        try {
+                            // must sleep a bit as otherwise we are too fast
+                            Thread.sleep(1000);
+                            pull();
+                        } catch (Throwable e) {
+                            LOG.debug("Error during pull due " + e.getMessage(), e);
+                            // we dont want stacktrace in WARNs
+                            LOG.warn("Error during pull due " + e.getMessage() + ". This exception is ignored.");
+                        }
+                    }
+
+                    @Override
+                    public void stateChanged(CuratorFramework curatorFramework, ConnectionState connectionState) {
+                        // ignore
+                    }
+                });
+                counter.start();
+            }
+
+       } catch (Exception ex) {
             throw new FabricException("Failed to start GitDataStore:", ex);
         }
     }
@@ -197,8 +289,90 @@ public class GitDataStore extends AbstractDataStore<GitDataStore> {
                     throw FabricException.launderThrowable(ex);
                 }
             }
+
+            if (defaultProxySelector != null) {
+                LOG.info("Restoring ProxySelector to original: {}", defaultProxySelector);
+                ProxySelector.setDefault(defaultProxySelector);
+                // authenticator disabled, until properly tested it does not affect others, as Authenticator is static in the JVM
+                // reset authenticator by setting it to null
+                // Authenticator.setDefault(null);
+            }
+
+            try {
+                if (counter != null) {
+                    counter.close();
+                    counter = null;
+                }
+            } catch (IOException e) {
+                LOG.warn("Error closing SharedCount due " + e.getMessage() + ". This exception is ignored.", e);
+            }
+
         } finally {
             super.deactivateInternal();
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    public void importFromFilesystem(Path path) {
+        LOG.info("Importing additional profiles from file system directory: {}", path);
+
+        List<String> profiles = new ArrayList<String>();
+
+        // find any zip files
+
+        String[] zips = path.toFile().list(new FilenameFilter() {
+            @Override
+            public boolean accept(File dir, String name) {
+                return name.endsWith(".zip");
+            }
+        });
+        int count = zips != null ? zips.length : 0;
+        LOG.info("Found {} .zip files to import", count);
+
+        if (zips != null && zips.length > 0) {
+            for (String name : zips) {
+                profiles.add("file:" + path + "/" + name);
+                LOG.debug("Adding {} .zip file to import", name);
+            }
+        }
+
+        // look for .properties file which can have list of urls to import
+        String[] props = path.toFile().list(new FilenameFilter() {
+            @Override
+            public boolean accept(File dir, String name) {
+                return name.endsWith(".properties");
+            }
+        });
+        count = props != null ? props.length : 0;
+        LOG.info("Found {} .properties files to import", count);
+        try {
+            if (props != null && props.length > 0) {
+                for (String name : props) {
+                    java.util.Properties p = new java.util.Properties();
+                    p.load(new FileInputStream(path.resolve(name).toFile()));
+
+                    Enumeration<String> e = (Enumeration<String>) p.propertyNames();
+                    while (e.hasMoreElements()) {
+                        String key = e.nextElement();
+                        String value = p.getProperty(key);
+
+                        if (value != null) {
+                            profiles.add(value);
+                            LOG.debug("Adding {} to import", value);
+                        }
+                    }
+                }
+            }
+        } catch (Exception e) {
+            LOG.debug("Error importing profiles due " + e.getMessage(), e);
+            // we dont want stacktrace in WARNs
+            LOG.warn("Error importing profiles due " + e.getMessage() + ". This exception is ignored.", e);
+        }
+
+        if (!profiles.isEmpty()) {
+            LOG.info("Importing additional profiles from {} url locations ...", profiles.size());
+            importProfiles(getDefaultVersion(), profiles);
+            LOG.info("Importing additional profiles done");
         }
     }
 
@@ -254,11 +428,15 @@ public class GitDataStore extends AbstractDataStore<GitDataStore> {
                 importFromFileSystem(metrics, CONFIG_ROOT_DIR, defaultVersion, false);
             }
         } else {
-            LOG.info("Importing " + sourceDir + " as version " + defaultVersion);
-            importFromFileSystem(sourceDir, "", defaultVersion, false);
+            // default to version 1.0
+            String version = "1.0";
+            LOG.info("Importing " + fabricsDir + " as version " + version);
+            importFromFileSystem(fabricsDir, "", version, false);
         }
     }
 
+    private static final int MAX_COMMITS_WITHOUT_GC = 40;
+    private int commitsWithoutGC = MAX_COMMITS_WITHOUT_GC;
 
     public void importFromFileSystem(final File from, final String destinationPath, final String version, final boolean isProfileDir) {
         assertValid();
@@ -270,10 +448,10 @@ public class GitDataStore extends AbstractDataStore<GitDataStore> {
                 if (Strings.isNotBlank(destinationPath)) {
                     toDir = new File(toDir, destinationPath);
                 }
-                if (isProfileDir && useDirectoriesForProfiles) {
+                if (isProfileDir && Profiles.useDirectoriesForProfiles) {
                     recursiveAddLegacyProfileDirectoryFiles(git, from, toDir, destinationPath);
                 } else {
-                    recursiveCopyAndAdd(git, from, toDir, destinationPath, true);
+                    recursiveCopyAndAdd(git, from, toDir, destinationPath, false);
                 }
                 context.commit("Imported from " + from);
                 return null;
@@ -318,7 +496,10 @@ public class GitDataStore extends AbstractDataStore<GitDataStore> {
             public Void call(Git git, GitContext context) throws Exception {
                 removeVersion(version);
                 GitHelpers.removeBranch(git, version);
-                context.requirePush();
+                git.push().setTimeout(gitTimeout)
+                        .setCredentialsProvider(getCredentialsProvider())
+                        .setRefSpecs(new RefSpec().setSource(null).setDestination("refs/heads/" + version))
+                        .call();
                 return null;
             }
         });
@@ -388,9 +569,9 @@ public class GitDataStore extends AbstractDataStore<GitDataStore> {
                         // TODO we could recursively scan for magic ".profile" files or something
                         // then we could put profiles into nicer tree structure?
                         String name = file.getName();
-                        if (useDirectoriesForProfiles) {
-                            if (name.endsWith(PROFILE_FOLDER_SUFFIX)) {
-                                name = name.substring(0, name.length() - PROFILE_FOLDER_SUFFIX.length());
+                        if (Profiles.useDirectoriesForProfiles) {
+                            if (name.endsWith(Profiles.PROFILE_FOLDER_SUFFIX)) {
+                                name = name.substring(0, name.length() - Profiles.PROFILE_FOLDER_SUFFIX.length());
                                 answer.add(prefix + name);
                             } else {
                                 doAddProfileNames(answer, file, prefix + name + "-");
@@ -430,6 +611,50 @@ public class GitDataStore extends AbstractDataStore<GitDataStore> {
                     return null;
                 }
                 return profile;
+            }
+        });
+    }
+
+    @Override
+    public void importProfiles(final String version, final List<String> profileZipUrls) {
+        assertValid();
+        gitOperation(new GitOperation<String>() {
+            public String call(Git git, GitContext context) throws Exception {
+                checkoutVersion(git, version);
+                return doImportProfiles(git, context, profileZipUrls);
+            }
+        });
+    }
+
+    @Override
+    public void exportProfiles(final String version, final String outputFileName, String wildcard) {
+        final File outputFile = new File(outputFileName);
+        outputFile.getParentFile().mkdirs();
+        final FileFilter filter;
+        if (Strings.isNotBlank(wildcard)) {
+            final WildcardFileFilter matcher = new WildcardFileFilter(wildcard);
+            filter = new FileFilter() {
+                @Override
+                public boolean accept(File file) {
+                    // match either the file or parent folder
+                    boolean answer = matcher.accept(file);
+                    if (!answer) {
+                        File parentFile = file.getParentFile();
+                        if (parentFile != null) {
+                            answer = accept(parentFile);
+                        }
+                    }
+                    return answer;
+                }
+            };
+        } else {
+            filter = null;
+        }
+        assertValid();
+        gitOperation(new GitOperation<String>() {
+            public String call(Git git, GitContext context) throws Exception {
+                checkoutVersion(git, version);
+                return doExportProfiles(git, context, outputFile, filter);
             }
         });
     }
@@ -743,6 +968,20 @@ public class GitDataStore extends AbstractDataStore<GitDataStore> {
     }
 
     @Override
+    public void setConfigurationFile(final String version, final String profile, final String fileName, final byte[] data) {
+        assertValid();
+        gitOperation(new GitOperation<Void>() {
+            public Void call(Git git, GitContext context) throws Exception {
+                checkoutVersion(git, GitProfiles.getBranch(version, profile));
+                doSetFileConfiguration(git, profile, fileName, data);
+                context.setPushBranch(version);
+                context.commit("Updated configuration for profile " + profile);
+                return null;
+            }
+        });
+    }
+
+    @Override
     public String getDefaultJvmOptions() {
         assertValid();
         try {
@@ -886,6 +1125,11 @@ public class GitDataStore extends AbstractDataStore<GitDataStore> {
                         LOG.warn("No commit message from " + operation + ". Please add one! :)");
                     }
                     git.commit().setMessage(message).call();
+                    if (--commitsWithoutGC < 0) {
+                        commitsWithoutGC = MAX_COMMITS_WITHOUT_GC;
+                        LOG.debug("Performing \"git gc\" after {} commits", MAX_COMMITS_WITHOUT_GC);
+                        git.gc().call();
+                    }
                 }
 
                 if (requirePush) {
@@ -928,18 +1172,20 @@ public class GitDataStore extends AbstractDataStore<GitDataStore> {
                 return Collections.emptyList();
             }
 
-            return git.push().setTimeout(10).setCredentialsProvider(credentialsProvider).setPushAll().call();
-        } catch (Exception ex) {
-            LOG.debug("Push failed. This will be ignored.", ex);
+            return git.push().setTimeout(gitTimeout).setCredentialsProvider(credentialsProvider).setPushAll().call();
+        } catch (Throwable ex) {
+            // log stacktrace at debug level
+            LOG.warn("Failed to push from the remote git repo " + GitHelpers.getRootGitDirectory(git) + " due " + ex.getMessage() + ". This exception is ignored.");
+            LOG.debug("Failed to push from the remote git repo " + GitHelpers.getRootGitDirectory(git) + ". This exception is ignored.", ex);
             return Collections.emptyList();
         }
     }
 
-    protected CredentialsProvider getCredentialsProvider()  {
+    protected CredentialsProvider getCredentialsProvider() {
         assertValid();
         Map<String, String> properties = getDataStoreProperties();
-        String username = null;
-        String password = null;
+        String username;
+        String password;
         if (isExternalGitConfigured(properties)) {
             username = getExternalUser(properties);
             password = getExternalCredential(properties);
@@ -968,9 +1214,10 @@ public class GitDataStore extends AbstractDataStore<GitDataStore> {
 
     /**
      * Performs a pull so the git repo is pretty much up to date before we start performing operations on it.
-     * @param git                   The {@link Git} instance to use.
-     * @param credentialsProvider   The {@link CredentialsProvider} to use.
-     * @param doDeleteBranches      Flag that determines wether local branches that don't exist in remote should get deleted.
+     *
+     * @param git                 The {@link Git} instance to use.
+     * @param credentialsProvider The {@link CredentialsProvider} to use.
+     * @param doDeleteBranches    Flag that determines if local branches that don't exist in remote should get deleted.
      */
     protected void doPull(Git git, CredentialsProvider credentialsProvider, boolean doDeleteBranches) {
         assertValid();
@@ -1001,9 +1248,10 @@ public class GitDataStore extends AbstractDataStore<GitDataStore> {
 
             boolean hasChanged = false;
             try {
-                FetchResult result = git.fetch().setTimeout(10).setCredentialsProvider(credentialsProvider).setRemote(remoteRef.get()).call();
-                if (Strings.isNullOrBlank(result.getMessages()));
-                LOG.debug(result.getMessages());
+                FetchResult result = git.fetch().setTimeout(gitTimeout).setCredentialsProvider(credentialsProvider).setRemote(remoteRef.get()).call();
+                if (LOG.isDebugEnabled()) {
+                    LOG.debug("Git fetch result: {}", result.getMessages());
+                }
                 lastFetchWarning = null;
             } catch (Exception ex) {
                 String fetchWarning = ex.getMessage();
@@ -1079,8 +1327,9 @@ public class GitDataStore extends AbstractDataStore<GitDataStore> {
                 }
                 fireChangeNotifications();
             }
-        } catch (Throwable e) {
-            LOG.error("Failed to pull from the remote git repo " + GitHelpers.getRootGitDirectory(git) + ". Reason: " + e, e);
+        } catch (Throwable ex) {
+            LOG.debug("Failed to pull from the remote git repo " + GitHelpers.getRootGitDirectory(git), ex);
+            LOG.warn("Failed to pull from the remote git repo " + GitHelpers.getRootGitDirectory(git) + " due " + ex.getMessage() + ". This exception is ignored.");
         }
     }
 
@@ -1099,6 +1348,50 @@ public class GitDataStore extends AbstractDataStore<GitDataStore> {
         doAddFiles(git, profileDirectory, metadataFile);
         context.commit("Added profile " + profile);
         return profile;
+    }
+
+     /**
+     * Imports one or more profile zips into the given version
+     */
+    protected String doImportProfiles(Git git, GitContext context, List<String> profileZipUrls) throws GitAPIException, IOException {
+        assertValid();
+        // we cannot use fabricService as it has not been initialized yet, so we can only support
+        // dynamic version of one token ${version:fabric} in the urls
+        String fabricVersion = getFabricReleaseVersion();
+
+        File profilesDirectory = getProfilesDirectory(git);
+        for (String profileZipUrl : profileZipUrls) {
+            String token = "\\$\\{version:fabric\\}";
+            String url = profileZipUrl.replaceFirst(token, fabricVersion);
+            URL zipUrl;
+            try {
+                zipUrl = new URL(url);
+            } catch (MalformedURLException e) {
+                throw new IOException("Failed to create URL for " + url + ". " + e, e);
+            }
+            InputStream inputStream = zipUrl.openStream();
+            if (inputStream == null) {
+                throw new IOException("Could not open zip: " + url);
+            }
+            try {
+                Zips.unzip(inputStream, profilesDirectory);
+            } catch (IOException e) {
+                throw new IOException("Failed to unzip " + url + ". " + e, e);
+            }
+        }
+        doAddFiles(git, profilesDirectory);
+        context.commit("Added profile zip(s) " + profileZipUrls);
+        return null;
+    }
+
+    /**
+     * exports one or more profile folders from the given version into the zip
+     */
+    protected String doExportProfiles(Git git, GitContext context, File outputFile, FileFilter filter) throws IOException {
+        assertValid();
+        File profilesDirectory = getProfilesDirectory(git);
+        Zips.createZipFile(LOG, profilesDirectory, outputFile, filter);
+        return null;
     }
 
     /**
@@ -1179,11 +1472,7 @@ public class GitDataStore extends AbstractDataStore<GitDataStore> {
      */
     public String convertProfileIdToDirectory(String profileId) {
         assertValid();
-        if (useDirectoriesForProfiles) {
-            return profileId.replace('-', File.separatorChar) + PROFILE_FOLDER_SUFFIX;
-        } else {
-            return profileId;
-        }
+        return Profiles.convertProfileIdToPath(profileId);
     }
 
     protected void pull() {
@@ -1296,13 +1585,11 @@ public class GitDataStore extends AbstractDataStore<GitDataStore> {
     /**
      * Checks if there is an actual difference between two commits.
      * In some cases a container may push a commit, without actually modifying anything.
-     * So comparing the commit hashes is not always enough. We need to acutally diff the two commits.
-     * @param git       The {@link Git} instance to use.
-     * @param before    The hash of the first commit.
-     * @param after     The hash of the second commit.
-     * @return
-     * @throws IOException
-     * @throws GitAPIException
+     * So comparing the commit hashes is not always enough. We need to actually diff the two commits.
+     *
+     * @param git    The {@link Git} instance to use.
+     * @param before The hash of the first commit.
+     * @param after  The hash of the second commit.
      */
     private boolean hasChanged(Git git, String before, String after) throws IOException, GitAPIException {
         if (isCommitEqual(before, after)) {
@@ -1355,6 +1642,15 @@ public class GitDataStore extends AbstractDataStore<GitDataStore> {
         this.gitService.unbind(service);
     }
 
+    @VisibleForTesting
+    public void bindGitProxyService(GitProxyService service) {
+        this.gitProxyService.bind(service);
+    }
+
+    void unbindGitProxyService(GitProxyService service) {
+        this.gitProxyService.unbind(service);
+    }
+
     class GitDataStoreListener implements GitListener {
 
         @Override
@@ -1365,7 +1661,6 @@ public class GitDataStore extends AbstractDataStore<GitDataStore> {
                     @Override
                     public void run() {
                         if (isValid()) {
-                            LOG.debug("Performing on remote url changed from: {} to: {}", updatedUrl, actualUrl);
                             gitOperation(new GitOperation<Void>() {
                                 @Override
                                 public Void call(Git git, GitContext context) throws Exception {
@@ -1373,7 +1668,8 @@ public class GitDataStore extends AbstractDataStore<GitDataStore> {
                                     StoredConfig config = repository.getConfig();
                                     String currentUrl = config.getString("remote", "origin", "url");
                                     if (actualUrl != null && !actualUrl.equals(currentUrl)) {
-                                            remoteUrl = actualUrl;
+                                        LOG.info("Performing on remote url changed from: {} to: {}", currentUrl, actualUrl);
+                                        remoteUrl = actualUrl;
                                         config.setString("remote", "origin", "url", actualUrl);
                                         config.setString("remote", "origin", "fetch", "+refs/heads/*:refs/remotes/origin/*");
                                         config.save();
@@ -1386,6 +1682,7 @@ public class GitDataStore extends AbstractDataStore<GitDataStore> {
                             });
                         }
                     }
+
                     @Override
                     public String toString() {
                         return "RemoteUrlChangedTask";
@@ -1400,4 +1697,127 @@ public class GitDataStore extends AbstractDataStore<GitDataStore> {
             clearCaches();
         }
     }
+
+    /**
+     * A {@link java.net.ProxySelector} that uses the {@link io.fabric8.git.GitProxyService} to handle
+     * proxy git communication if needed.
+     */
+    class FabricGitLocalHostProxySelector extends ProxySelector {
+
+        final static String GIT_FABRIC_PATH = "/git/fabric/";
+
+        final ProxySelector delegate;
+        final GitProxyService proxyService;
+        final List<Proxy> noProxy;
+
+        FabricGitLocalHostProxySelector(ProxySelector delegate, GitProxyService proxyService) {
+            this.delegate = delegate;
+            this.proxyService = proxyService;
+            this.noProxy = new ArrayList<Proxy>(1);
+            this.noProxy.add(Proxy.NO_PROXY);
+        }
+
+        @Override
+        public List<Proxy> select(URI uri) {
+            String host = uri.getHost();
+            String path = uri.getPath();
+            if (LOG.isTraceEnabled()) {
+                LOG.trace("ProxySelector uri: {}", uri);
+                LOG.trace("ProxySelector nonProxyHosts {}", proxyService.getNonProxyHosts());
+                LOG.trace("ProxySelector proxyHost {}", proxyService.getProxyHost());
+            }
+
+            // we should only intercept when its a git/fabric request
+            List<Proxy> answer;
+            if (path != null && path.startsWith(GIT_FABRIC_PATH)) {
+                answer = doSelect(host, proxyService.getNonProxyHosts(), proxyService.getProxyHost(), proxyService.getProxyPort());
+            } else {
+                // use delegate
+                answer = delegate.select(uri);
+            }
+
+            LOG.debug("ProxySelector uri: {} -> {}", uri, answer);
+            return answer;
+        }
+
+        private List<Proxy> doSelect(String host, String nonProxy, String proxyHost, int proxyPort) {
+            // match any non proxy
+            if (nonProxy != null) {
+                StringTokenizer st = new StringTokenizer(nonProxy, "|", false);
+                while (st.hasMoreTokens()) {
+                    String token = st.nextToken();
+                    if (host.matches(token)) {
+                        return noProxy;
+                    }
+                }
+            }
+
+            // okay then it should proxy if we have a proxy setting
+            if (proxyHost != null) {
+                InetSocketAddress adr = InetSocketAddress.createUnresolved(proxyHost, proxyPort);
+                List<Proxy> answer = new ArrayList<Proxy>(1);
+                answer.add(new Proxy(Proxy.Type.HTTP, adr));
+                return answer;
+            } else {
+                // use no proxy
+                return noProxy;
+            }
+        }
+
+        @Override
+        public void connectFailed(URI uri, SocketAddress sa, IOException ioe) {
+            delegate.connectFailed(uri, sa, ioe);
+        }
+
+    }
+
+    /**
+     * A {@link java.net.Authenticator} that uses the {@link io.fabric8.git.GitProxyService}
+     * to use the any configured username/password needed for the git HTTP proxy.
+     */
+    /*
+    class FabricGitLocalHostAuthenticator extends Authenticator {
+
+        // authenticator disabled, until properly tested it does not affect others, as Authenticator is static in the JVM
+
+        final GitProxyService proxyService;
+
+        FabricGitLocalHostAuthenticator(GitProxyService proxyService) {
+            this.proxyService = proxyService;
+        }
+
+        @Override
+        protected PasswordAuthentication getPasswordAuthentication() {
+
+            String host = getRequestingHost();
+            if (LOG.isTraceEnabled()) {
+                LOG.trace("ProxyAuthenticator type: {}", getRequestorType());
+                LOG.trace("ProxyAuthenticator url: {}", getRequestingURL());
+                LOG.trace("ProxyAuthenticator host: {}", getRequestingHost());
+                LOG.trace("ProxyAuthenticator port: {}", getRequestingPort());
+                LOG.trace("ProxyAuthenticator prompt: {}", getRequestingPrompt());
+                LOG.trace("ProxyAuthenticator protocol: {}", getRequestingProtocol());
+                LOG.trace("ProxyAuthenticator scheme: {}", getRequestingScheme());
+                LOG.trace("ProxyAuthenticator site: {}", getRequestingSite());
+            }
+
+            // must be a proxy request to our http proxy
+            // must have username configure to react and
+            if (proxyService.getProxyUsername() != null
+                && getRequestorType() == RequestorType.PROXY
+                && host.equalsIgnoreCase(proxyService.getProxyHost())
+                && getRequestingPort() == proxyService.getProxyPort()) {
+
+                char[] pw = "".toCharArray();
+                if (proxyService.getProxyPassword() != null) {
+                    pw = proxyService.getProxyPassword().toCharArray();
+                }
+                LOG.trace("ProxyAuthenticator username: {}", proxyService.getProxyUsername());
+                return new PasswordAuthentication(proxyService.getProxyUsername(), pw);
+            }
+
+            return null;
+        }
+    }*/
+
 }

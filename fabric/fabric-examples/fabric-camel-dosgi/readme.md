@@ -1,12 +1,12 @@
-# INTRODUCTION
+## Introduction
 
-This example demonstrates three features proposed by Fuse Fabric project :
+This example demonstrates three features proposed by Fabric8 project :
 
 * Configuration of a Zookeeper registry on a Karaf instance and deployment of local containers
 * Provisioning of artifacts (repositories, features, bundles, configurations) based on profiles usage
 * Implementation of an example using a service distributed based on OSGI spec - Remote Services (see Chapter 13 of document www.osgi.org/download/r4v42/r4.enterprise.pdf )
 
-# Explanation
+## Description
 
 The service that we will distribute is a java POJO created using an interface
 
@@ -42,7 +42,7 @@ To register this service (= Interfaces) into the OSGI registry, we use the follo
 
 During this process, Fabric will publish information in the Zookeeper registry. That will allow another Fabric container to discover them at runtime
 
-![fabric-osgi.png](https://github.com/fusesource/fuse/raw/master/fabric/fabric-examples/fabric-camel-dosgi/fabric-dosgi.png)
+![fabric-osgi.png](https://raw.githubusercontent.com/fabric8io/fabric8/master/fabric/fabric-examples/fabric-camel-dosgi/fabric-dosgi.png)
 
 In another bundle, we will create a Camel route where we will refer to this service using as key the name of the interface that we will lookup into
 the Zookeeper registry to find it and get locally a proxy object !
@@ -63,45 +63,44 @@ the Zookeeper registry to find it and get locally a proxy object !
 </camelContext>
 
 
-# COMPILING
+## Compiling
 
     cd fabric-examples/fabric-camel-dosgi
     mvn clean install
 
-# RUNNING
+## How to try this example
 
-1) Before you run Karaf you might like to set these environment variables...
+The following information is divded into two sections, whether you are using the command line shell in fabric, or using the web console
 
-    export JAVA_PERM_MEM=64m
-    export JAVA_MAX_PERM_MEM=512m
+### Using the command line shell
 
-2) Download and install a fresh distribution of Fuse ESB enterprise or Fabric 7.x (http://fuse.fusesource.org/fabric/download.html)
+You can deploy and run this example at the console command line, as follows:
 
-And run the following command in the console
+1. It is assumed that you have already created a fabric and are logged into a container called `root`.
+1. Create a container and assign it the example-dosgi-camel.provider profile
 
-3) Initialize a local Fabric
+    fabric:container-create-child --profile example-dosgi-camel.provider --parent root dosgi-provider
 
-    fabric:create --clean root
+1. Create a container and assign it the example-dosgi-camel.consumer profile
 
+    fabric:container-create-child --profile example-dosgi-camel.consumer --parent root dosgi-camel
 
-4) Create a container and assign it the example-dosgi-camel.provider profile
+1. Log into the `mychild` container using the `fabric:container-connect` command, as follows:
 
-    fabric:container-create --profile example-dosgi-camel.provider --parent root dosgi-provider
+        fabric:container-connect mychild
 
-5) Create a container and assign it the example-dosgi-camel.consumer profile
+1. View the container log using the `log:tail` command as follows:
 
-    fabric:container-create --profile example-dosgi-camel.consumer --parent root dosgi-camel
+        log:tail
 
-6) Check that the consumer routes and see the route info of consumer
+You should see similar log statements as above:
 
-    shell:watch fabric:container-connect dosgi-camel camel:route-info fabric-client
+```
+   fabric-client | 71 - org.apache.camel.camel-core - 2.13.1 | >>> Response from : Message from distributed service to : Fabric Container
+   fabric-client | 71 - org.apache.camel.camel-core - 2.13.1 | >>> Response from : Message from distributed service to : Fabric Container
+   fabric-client | 71 - org.apache.camel.camel-core - 2.13.1 | >>> Response from : Message from distributed service to : Fabric Container
+```
 
-   The command above will automatically refresh the output every second.
+## Running from web console
 
-   or Connect to the dosgi-camel container and verify that Camel logs this info
-
-   fabric-client | 71 - org.apache.camel.camel-core - 2.9.0.fuse-7-061 | >>> Response from : Message from distributed service to : Fuse Fabric Container
-   fabric-client | 71 - org.apache.camel.camel-core - 2.9.0.fuse-7-061 | >>> Response from : Message from distributed service to : Fuse Fabric Container
-   fabric-client | 71 - org.apache.camel.camel-core - 2.9.0.fuse-7-061 | >>> Response from : Message from distributed service to : Fuse Fabric Container
-
-Enjoy!
+Install the consumer and provider profile into separate containers. Connect to the consumer and see the log tab to see what happens.

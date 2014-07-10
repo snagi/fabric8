@@ -23,7 +23,15 @@ From the CLI or Fuse Management Console just run an instance of the **gateway-mq
 
 To configure the gateway, navigate to the profile page then click on the **Configuration** tab, then select either the **Fabric8 HTTP Gateway** or the **Fabric8 MQ Gateway** to configure its settings.
 
-### HTTP Mapping rules
+### The Fabric8 MQ Gateway
+
+The MQ gateway binds a single IP port but can support accepting connections from OpenWire, MQTT, STOMP, AMQP or HTTP clients.  When it receives an HTTP connection, it will pass that connection the the HTTP Gateway for routing if it's deployed.  For the other protocols, it uses the host the client was trying to connect to to lookup a broker fabric group by the same name.  The client is then connected to one of the brokers in the group that supports the protocol the client is connecting with.  If the host the client is trying connect to cannot be determined or does not match any of the fabric broker groups, then the client will be connected to broker group that matches `defaultVirtualHost` configuration.
+
+### The Fabric8 HTTP Gateway
+
+If `Web Socket Gateway` is enabled on the HTTP gateway, then any web socket connections received that match the configured prefix path will get routed to the MQ gateway for further routing if it's deployed.
+
+#### HTTP Mapping rules
 
 When using the HTTP gateway, its common to wish to map different versions of web applications or web services to different URI paths on the gateway. You can perform very flexible mappings using [URI templates](http://en.wikipedia.org/wiki/URL_Template).
 
@@ -92,7 +100,7 @@ If you want to split RESTful APIs and SOAP web services into different URI paths
     ZooKeeperPath: /fabric/registry/clusters/apis/ws
     URI template: /ws{contextPath}/
 
-### Versioning: Explict URIs
+#### Versioning: Explict URIs
 
 You may wish to expose all available versions of each web service and web application at a different URI. e.g. if you change your URI template to:
 
@@ -105,17 +113,17 @@ Then if you have 1.0 and 1.1 versions of a profile with web services or web apps
 
 Then both versions are available to the gateway - provided you include the version information in the URI
 
-### Versioning: Rolling Upgrades
+#### Versioning: Rolling Upgrades
 
 Another approach to dealing with versions of web services and web applications is to only expose a single version of each web service or web application at a time in a single gateway. This is the default out of the box configuration.
 
-So if you deploy a 1.0 version of the **gateway-http** profile and run a few services, then you'll see all 1.0 versions of them. Run some 1.1 versions of the services and the gateway won't see them. Then if you do a [rolling upgrade](rollingUpgrade.md) of your gateway to 1.1 it will then switch to only showing the 1.1 versions of the services.
+So if you deploy a 1.0 version of the **gateway-http** profile and run a few services, then you'll see all 1.0 versions of them. Run some 1.1 versions of the services and the gateway won't see them. Then if you do a [rolling upgrade](rollingUpgrade.html) of your gateway to 1.1 it will then switch to only showing the 1.1 versions of the services.
 
 If you want to be completely specific on a version you can specify the exact _profile_ version on the mapping configuration screen.
 
 The other approach when using web applications is you could specify the maven coordinates and maven version of a web application in the ZooKeeper path.
 
-### URI template expressions
+#### URI template expressions
 
 The following table outlines the available variables you can use in a URI template expression
 
@@ -152,17 +160,17 @@ The following table outlines the available variables you can use in a URI templa
 </tr>
 </table>
 
-### Viewing all the active HTTP URIs
+#### Viewing all the active HTTP URIs
 
 Once you've run a few web services and web applications and you are runnning the gateway you may be wondering what URIs are available. Assuming you're on a machine with the gateway, just browse the URL [http://localhost:9000/]([http://localhost:9000/) and you should see the JSON of all the URI prefixes and the underlying servers they are bound to.
 
-## Haproxy Gateway
+### Haproxy Gateway
 
 If you are using [haproxy](http://haproxy.1wt.eu/) as your HTTP load balancer you can use the **gateway-haproxy** profile to automatically generate your haproxy configuration file in real time whenever web services, web applications or servlets are deployed or undeployed.
 
 The haproxy gateway uses the same URI template mapping rules above to know how to map front end URI requests to back ends and server instances; so it can generate the detail of the haproxy configuration file.
 
-### Configuring the haproxy gateway
+#### Configuring the haproxy gateway
 
 To get the haproxy gateway working you need to configure it so that:
 

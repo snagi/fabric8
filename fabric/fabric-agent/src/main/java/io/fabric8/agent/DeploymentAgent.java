@@ -1,44 +1,82 @@
 /**
- * Copyright (C) FuseSource, Inc.
- * http://fusesource.com
+ *  Copyright 2005-2014 Red Hat, Inc.
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ *  Red Hat licenses this file to you under the Apache License, version
+ *  2.0 (the "License"); you may not use this file except in compliance
+ *  with the License.  You may obtain a copy of the License at
  *
- *    http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or
+ *  implied.  See the License for the specific language governing
+ *  permissions and limitations under the License.
  */
 package io.fabric8.agent;
 
-import io.fabric8.agent.resolver.FeatureResource;
-import io.fabric8.utils.Strings;
-import org.apache.felix.framework.monitor.MonitoringService;
-import org.apache.felix.utils.properties.Properties;
-import org.apache.felix.utils.version.VersionRange;
-import org.apache.karaf.features.Repository;
-import org.apache.karaf.features.internal.FeaturesServiceImpl;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.InterruptedIOException;
+import java.io.PrintWriter;
+import java.io.StringWriter;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.Dictionary;
+import java.util.Enumeration;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Hashtable;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.TreeMap;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ThreadFactory;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.regex.Pattern;
+
 import io.fabric8.agent.download.DownloadManager;
-import io.fabric8.agent.mvn.*;
+import io.fabric8.agent.mvn.DictionaryPropertyResolver;
+import io.fabric8.agent.mvn.MavenConfigurationImpl;
+import io.fabric8.agent.mvn.MavenRepositoryURL;
+import io.fabric8.agent.mvn.MavenSettingsImpl;
+import io.fabric8.agent.mvn.PropertiesPropertyResolver;
+import io.fabric8.agent.mvn.PropertyStore;
 import io.fabric8.agent.repository.HttpMetadataProvider;
 import io.fabric8.agent.repository.MetadataRepository;
+import io.fabric8.agent.resolver.FeatureResource;
 import io.fabric8.agent.sort.RequirementSort;
-import io.fabric8.utils.MultiException;
 import io.fabric8.api.Container;
 import io.fabric8.api.FabricService;
+import io.fabric8.common.util.ChecksumUtils;
+import io.fabric8.common.util.Files;
+import io.fabric8.common.util.MultiException;
+import io.fabric8.common.util.Strings;
 import io.fabric8.fab.MavenResolver;
 import io.fabric8.fab.MavenResolverImpl;
 import io.fabric8.fab.osgi.ServiceConstants;
 import io.fabric8.fab.osgi.internal.Configuration;
 import io.fabric8.fab.osgi.internal.FabResolverFactoryImpl;
-import io.fabric8.utils.ChecksumUtils;
-import io.fabric8.utils.Files;
-import org.osgi.framework.*;
+import org.apache.felix.utils.properties.Properties;
+import org.apache.felix.utils.version.VersionRange;
+import org.apache.karaf.features.Repository;
+import org.apache.karaf.features.internal.FeaturesServiceImpl;
+import org.osgi.framework.Bundle;
+import org.osgi.framework.BundleContext;
+import org.osgi.framework.BundleException;
+import org.osgi.framework.Constants;
+import org.osgi.framework.FrameworkEvent;
+import org.osgi.framework.FrameworkListener;
+import org.osgi.framework.ServiceReference;
 import org.osgi.framework.Version;
 import org.osgi.framework.namespace.PackageNamespace;
 import org.osgi.framework.wiring.BundleCapability;
@@ -54,29 +92,27 @@ import org.osgi.util.tracker.ServiceTrackerCustomizer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.*;
-import java.util.*;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ThreadFactory;
-import java.util.concurrent.atomic.AtomicInteger;
-import java.util.regex.Pattern;
-
-import static org.apache.felix.resolver.Util.getSymbolicName;
-import static org.apache.felix.resolver.Util.getVersion;
 import static io.fabric8.agent.resolver.UriNamespace.getUri;
 import static io.fabric8.agent.utils.AgentUtils.addMavenProxies;
 import static io.fabric8.agent.utils.AgentUtils.loadRepositories;
+import static org.apache.felix.resolver.Util.getSymbolicName;
+import static org.apache.felix.resolver.Util.getVersion;
 
 public class DeploymentAgent implements ManagedService {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(DeploymentAgent.class);
 
     public static final String FABRIC_ZOOKEEPER_PID = "fabric.zookeeper.pid";
+
     private static final String SNAPSHOT = "SNAPSHOT";
     private static final String BLUEPRINT_PREFIX = "blueprint:";
     private static final String SPRING_PREFIX = "spring:";
+
+    private static final String OBR_RESOLVE_OPTIONAL_IMPORTS = "obr.resolve.optional.imports";
+    private static final String RESOLVE_OPTIONAL_IMPORTS = "resolve.optional.imports";
+    private static final String URL_HANDLERS_TIMEOUT = "url.handlers.timeout";
+    private static final String DEFAULT_DOWNLOAD_THREADS = "2";
+    private static final String DOWNLOAD_THREADS = "io.fabric8.agent.download.threads";
 
     private static final String KARAF_HOME = System.getProperty("karaf.home");
     private static final String KARAF_BASE = System.getProperty("karaf.base");
@@ -93,11 +129,10 @@ public class DeploymentAgent implements ManagedService {
     private ServiceTracker<FabricService, FabricService> fabricService;
 
     private final ExecutorService executor = Executors.newSingleThreadExecutor(new NamedThreadFactory("fabric-agent"));
-    private ExecutorService downloadExecutor;
-    private volatile boolean shutdownDownloadExecutor;
+    private final ExecutorService downloadExecutor;
     private DownloadManager manager;
     private boolean resolveOptionalImports = false;
-    private long urlHandlersTimeout;
+    private long urlHandlersTimeout = TimeUnit.MILLISECONDS.convert(5, TimeUnit.MINUTES);
 
     private final RequirementSort requirementSort = new RequirementSort();
     private final BundleContext bundleContext;
@@ -128,10 +163,11 @@ public class DeploymentAgent implements ManagedService {
         this.managedLibs  = new Properties(bundleContext.getDataFile("libs.properties"));
         this.managedEndorsedLibs  = new Properties(bundleContext.getDataFile("endorsed.properties"));
         this.managedExtensionLibs  = new Properties(bundleContext.getDataFile("extension.properties"));
+        this.downloadExecutor = createDownloadExecutor();
 
         MavenConfigurationImpl config = new MavenConfigurationImpl(new PropertiesPropertyResolver(System.getProperties()), "org.ops4j.pax.url.mvn");
         config.setSettings(new MavenSettingsImpl(config.getSettingsFileUrl(), config.useFallbackRepositories()));
-        manager = new DownloadManager(config);
+        manager = new DownloadManager(config, getDownloadExecutor());
         fabricService = new ServiceTracker<FabricService, FabricService>(systemBundleContext, FabricService.class, new ServiceTrackerCustomizer<FabricService, FabricService>() {
             @Override
             public FabricService addingService(ServiceReference<FabricService> reference) {
@@ -154,6 +190,19 @@ public class DeploymentAgent implements ManagedService {
             }
         });
         fabricService.open();
+    }
+
+    protected ExecutorService createDownloadExecutor() {
+        String size = DEFAULT_DOWNLOAD_THREADS;
+        try {
+            Properties customProps = new Properties(new File(KARAF_BASE + File.separator + "etc" + File.separator + "custom.properties"));
+            size = customProps.getProperty(DOWNLOAD_THREADS, size);
+        } catch (Exception e) {
+            // ignore
+        }
+        int num = Integer.parseInt(size);
+        LOGGER.info("Creating fabric-agent-download thread pool with size: {}", num);
+        return Executors.newFixedThreadPool(num, new NamedThreadFactory("fabric-agent-download"));
     }
 
     public boolean isResolveOptionalImports() {
@@ -184,11 +233,8 @@ public class DeploymentAgent implements ManagedService {
         LOGGER.info("Stopping DeploymentAgent");
         // We can't wait for the threads to finish because the agent needs to be able to
         // update itself and this would cause a deadlock
-        executor.shutdown();
-        if (shutdownDownloadExecutor && downloadExecutor != null) {
-            downloadExecutor.shutdown();
-            downloadExecutor = null;
-        }
+        executor.shutdownNow();
+        downloadExecutor.shutdownNow();
         manager.shutdown();
         fabricService.close();
     }
@@ -345,7 +391,7 @@ public class DeploymentAgent implements ManagedService {
         // Building configuration
         PropertiesPropertyResolver syspropsResolver = new PropertiesPropertyResolver(System.getProperties());
         DictionaryPropertyResolver propertyResolver = new DictionaryPropertyResolver(props, syspropsResolver);
-        final MavenConfigurationImpl config = new MavenConfigurationImpl(new DictionaryPropertyResolver(props, syspropsResolver), "org.ops4j.pax.url.mvn");
+        final MavenConfigurationImpl config = new MavenConfigurationImpl(propertyResolver, "org.ops4j.pax.url.mvn");
         config.setSettings(new MavenSettingsImpl(config.getSettingsFileUrl(), config.useFallbackRepositories()));
         manager = new DownloadManager(config, getDownloadExecutor());
         Map<String, String> properties = new HashMap<String, String>();
@@ -356,6 +402,11 @@ public class DeploymentAgent implements ManagedService {
                 properties.put(key.toString(), val.toString());
             }
         }
+
+        // Update deployment agent configuration
+        setResolveOptionalImports(getResolveOptionalImports(properties));
+        setUrlHandlersTimeout(getUrlHandlersTimeout(properties));
+
         // Update framework, libs, system and config props
         boolean restart = false;
         Set<String> libsToRemove = new HashSet<String>(managedLibs.keySet());
@@ -525,6 +576,31 @@ public class DeploymentAgent implements ManagedService {
         install(allResources, ignoredBundles, providers);
         installFeatureConfigs(bundleContext, downloadedResources);
         return true;
+    }
+
+    private boolean getResolveOptionalImports(Map<String, String> config) {
+        if (config != null) {
+            String str = config.get(OBR_RESOLVE_OPTIONAL_IMPORTS);
+            if (str == null) {
+                str = config.get(RESOLVE_OPTIONAL_IMPORTS);
+            }
+            if (str != null) {
+                return Boolean.parseBoolean(str);
+            }
+        }
+        return false;
+    }
+
+    private long getUrlHandlersTimeout(Map<String, String> config) {
+        if (config != null) {
+            Object timeout = config.get(URL_HANDLERS_TIMEOUT);
+            if (timeout instanceof Number) {
+                return ((Number) timeout).longValue();
+            } else if (timeout instanceof String) {
+                return Long.parseLong((String) timeout);
+            }
+        }
+        return TimeUnit.MILLISECONDS.convert(5, TimeUnit.MINUTES);
     }
 
     private Set<String> getPrefixedProperties(Map<String, String> properties, String prefix) {
@@ -710,7 +786,14 @@ public class DeploymentAgent implements ManagedService {
             for (String key : newCheckums.keySet()) {
                 bundleChecksums.put(key, newCheckums.get(key));
             }
-            bundleChecksums.save();
+            try {
+                bundleChecksums.save();
+            } catch (IOException e) {
+                // this exception is most likely just due to fabric-agent version changes
+                // so the bundle has gone from under our feet so lets just log a warning
+                // so at least the agent can continue to load the new version of fabric-agent
+                LOGGER.warn("We failed to write the agent checksums which is probably due to the fabric-agent bundle being uninstalled so it can be replaced with a different version. Exception: " + e, e);
+            }
         }
 
         findBundlesWithOptionalPackagesToRefresh(toRefresh);
@@ -942,37 +1025,7 @@ public class DeploymentAgent implements ManagedService {
     }
 
     protected ExecutorService getDownloadExecutor() {
-        synchronized (this) {
-            if (this.downloadExecutor != null) {
-                return this.downloadExecutor;
-            }
-        }
-        ExecutorService downloadExecutor = null;
-        boolean shutdownDownloadExecutor;
-        try {
-            downloadExecutor = new FelixExecutorServiceFinder().find(bundleContext.getBundle());
-        } catch (Throwable t) {
-            LOGGER.warn("Cannot find reference to MonitoringService. This exception will be ignored.", t);
-        }
-        if (downloadExecutor == null) {
-            LOGGER.info("Creating a new fixed thread pool for download manager.");
-            downloadExecutor = Executors.newFixedThreadPool(5);
-            // we created our own thread pool, so we should shutdown when stopping
-            shutdownDownloadExecutor = true;
-        } else {
-            LOGGER.info("Using Felix thread pool for download manager.");
-            // we re-use existing thread pool, so we should not shutdown
-            shutdownDownloadExecutor = false;
-        }
-        synchronized (this) {
-            if (this.downloadExecutor == null) {
-                this.downloadExecutor = downloadExecutor;
-                this.shutdownDownloadExecutor = shutdownDownloadExecutor;
-            } else if (shutdownDownloadExecutor) {
-                downloadExecutor.shutdown();
-            }
-            return this.downloadExecutor;
-        }
+        return downloadExecutor;
     }
 
     private static boolean bundleSymbolicNameMatches(Bundle bundle, Collection<String> expressions) {
@@ -1028,7 +1081,6 @@ public class DeploymentAgent implements ManagedService {
         properties.putAll(config);
         configuration.setBundleLocation(null);
         configuration.update(properties);
-
     }
 
     static Collection<FeatureResource> filterFeatureResources(Map<String, Resource> resources) {
@@ -1043,26 +1095,6 @@ public class DeploymentAgent implements ManagedService {
 
     interface ExecutorServiceFinder {
         public ExecutorService find(Bundle bundle);
-    }
-
-    class FelixExecutorServiceFinder implements ExecutorServiceFinder {
-        final ServiceReference<MonitoringService> sr;
-
-        FelixExecutorServiceFinder() {
-            sr = bundleContext.getServiceReference(MonitoringService.class);
-            if (sr == null) {
-                throw new UnsupportedOperationException();
-            }
-        }
-
-        public ExecutorService find(Bundle bundle) {
-            MonitoringService ms = bundleContext.getService(sr);
-            try {
-                return ms.getExecutor(bundle);
-            } finally {
-                bundleContext.ungetService(sr);
-            }
-        }
     }
 
     static class NamedThreadFactory implements ThreadFactory {

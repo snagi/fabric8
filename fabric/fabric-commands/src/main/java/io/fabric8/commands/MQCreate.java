@@ -1,212 +1,118 @@
 /**
- * Copyright (C) FuseSource, Inc.
- * http://fusesource.com
+ *  Copyright 2005-2014 Red Hat, Inc.
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ *  Red Hat licenses this file to you under the Apache License, version
+ *  2.0 (the "License"); you may not use this file except in compliance
+ *  with the License.  You may obtain a copy of the License at
  *
- *    http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or
+ *  implied.  See the License for the specific language governing
+ *  permissions and limitations under the License.
  */
 package io.fabric8.commands;
 
-import org.apache.felix.gogo.commands.Argument;
-import org.apache.felix.gogo.commands.Command;
-import org.apache.felix.gogo.commands.CompleterValues;
-import org.apache.felix.gogo.commands.Option;
-import io.fabric8.api.CreateChildContainerOptions;
-import io.fabric8.api.CreateContainerBasicOptions;
-import io.fabric8.api.CreateContainerMetadata;
-import io.fabric8.api.FabricAuthenticationException;
-import io.fabric8.api.Profile;
-import io.fabric8.api.jmx.BrokerKind;
-import io.fabric8.api.jmx.MQBrokerConfigDTO;
-import io.fabric8.api.jmx.MQManager;
-import io.fabric8.boot.commands.support.FabricCommand;
-import io.fabric8.utils.Strings;
-import io.fabric8.utils.shell.ShellUtils;
-import io.fabric8.zookeeper.ZkDefs;
+import io.fabric8.api.FabricService;
+import io.fabric8.api.RuntimeProperties;
+import io.fabric8.api.scr.ValidatingReference;
+import io.fabric8.boot.commands.support.AbstractCommandComponent;
+import io.fabric8.boot.commands.support.ProfileCompleter;
+import io.fabric8.boot.commands.support.VersionCompleter;
+import io.fabric8.commands.support.BrokerKindCompleter;
+import org.apache.felix.gogo.commands.Action;
+import org.apache.felix.gogo.commands.basic.AbstractCommand;
+import org.apache.felix.scr.annotations.Activate;
+import org.apache.felix.scr.annotations.Component;
+import org.apache.felix.scr.annotations.Deactivate;
+import org.apache.felix.scr.annotations.Property;
+import org.apache.felix.scr.annotations.Reference;
+import org.apache.felix.scr.annotations.Service;
+import org.apache.felix.service.command.Function;
 
-import java.io.IOException;
-import java.util.List;
-import java.util.Map;
+@Component(immediate = true)
+@Service({ Function.class, AbstractCommand.class })
+@org.apache.felix.scr.annotations.Properties({
+    @Property(name = "osgi.command.scope", value = MQCreate.SCOPE_VALUE),
+    @Property(name = "osgi.command.function", value = MQCreate.FUNCTION_VALUE)
+})
+public class MQCreate extends AbstractCommandComponent {
 
-@Command(name = "mq-create", scope = "fabric", description = "Create a new broker")
-public class MQCreate extends FabricCommand {
+    public static final String SCOPE_VALUE = "fabric";
+    public static final String FUNCTION_VALUE = "mq-create";
+    public static final String DESCRIPTION = "Create a new broker";
 
-    @Argument(index = 0, required = true, description = "Broker name")
-    protected String name = null;
+    @Reference(referenceInterface = FabricService.class)
+    private final ValidatingReference<FabricService> fabricService = new ValidatingReference<FabricService>();
+    @Reference(referenceInterface = RuntimeProperties.class, bind = "bindRuntimeProperties", unbind = "unbindRuntimeProperties")
+    private final ValidatingReference<RuntimeProperties> runtimeProperties = new ValidatingReference<RuntimeProperties>();
 
-    @Option(name = "--parent-profile", description = "The parent profile to extend")
-    protected String parentProfile;
+    @Reference(referenceInterface = ProfileCompleter.class, bind = "bindProfileCompleter", unbind = "unbindProfileCompleter")
+    private ProfileCompleter profileCompleter; // dummy field
+    @Reference(referenceInterface = ProfileCompleter.class, bind = "bindParentProfileCompleter", unbind = "unbindParentProfileCompleter")
+    private ProfileCompleter parentProfileCompleter; // dummy field
+    @Reference(referenceInterface = VersionCompleter.class, bind = "bindVersionCompleter", unbind = "unbindVersionCompleter")
+    private VersionCompleter versionCompleter; // dummy field
 
-    @Option(name = "--profile", description = "The profile name to create/update if defining N+1 broker groups (otherwise this is defaulted to the broker name). Defaults to 'mq-broker-$GROUP.$NAME'")
-    protected String profile;
+    @Activate
+    void activate() {
+        bindOptionalCompleter("--kind", new BrokerKindCompleter());
+        activateComponent();
+    }
 
-    @Option(name = "--client-profile", description = "The profile name for clients to use to connect to the broker group. Defaults to 'mq-client-$GROUP'")
-    protected String clientProfile;
-
-    @Option(name = "--client-parent-profile", description = "The parent profile used for the client-profile for clients connecting to the broker group. Defaults to 'default'")
-    protected String clientParentProfile;
-
-    @Option(name = "--property", aliases = {"-D"}, description = "Additional properties to define in the profile")
-    List<String> properties;
-
-    @Option(name = "--config", description = "Configuration to use")
-    protected String config;
-
-    @Option(name = "--data", description = "Data directory for the broker")
-    protected String data;
-
-    @Option(name = "--ports", multiValued = true, description = "Port number for the transport connectors")
-    protected String[] ports;
-
-    @Option(name = "--group", description = "Broker group")
-    protected String group;
-
-    @Option(name = "--networks", multiValued = true, description = "Broker networks")
-    protected String[] networks;
-
-    @Option(name = "--networks-username", description = "Broker networks UserName")
-    protected String networksUserName;
-
-    @Option(name = "--networks-password", description = "Broker networks Password")
-    protected String networksPassword;
-
-    @Option(name = "--version", description = "The version id in the registry")
-    protected String version = ZkDefs.DEFAULT_VERSION;
-
-    @Option(name = "--create-container", multiValued = false, required = false, description = "Comma separated list of child containers to create with mq profile")
-    protected String create;
-
-    @Option(name = "--assign-container", multiValued = false, required = false, description = "Assign this mq profile to the following containers")
-    protected String assign;
-
-    @Option(name = "--jmx-user", multiValued = false, required = false, description = "The jmx user name of the parent container.")
-    protected String username;
-
-    @Option(name = "--jmx-password", multiValued = false, required = false, description = "The jmx password of the parent container.")
-    protected String password;
-
-    @Option(name = "--jvm-opts", multiValued = false, required = false, description = "Options to pass to the container's JVM.")
-    protected String jvmOpts;
-
-    @Option(name = "--minimumInstances", multiValued = false, required = false, description = "Minimum number of containers required of this broker's profile.")
-    protected Integer minimumInstances;
-
-    @Option(name = "--replicas", multiValued = false, required = false, description = "Number of replicas required for replicated brokers (which typically use a parent-profile of mq-replicated profile).")
-    protected Integer replicas;
-
-    @Option(name = "--kind", multiValued = false, required = false, description = "The kind of broker to create")
-    @CompleterValues()
-    protected BrokerKind kind;
+    @Deactivate
+    void deactivate() {
+        unbindOptionalCompleter("--kind");
+        deactivateComponent();
+    }
 
     @Override
-    protected Object doExecute() throws Exception {
-        MQBrokerConfigDTO dto = createDTO();
-
-        Profile profile = MQManager.createOrUpdateProfile(dto, fabricService);
-        String profileId = profile.getId();
-
-        System.out.println("MQ profile " + profileId + " ready");
-
-        // assign profile to existing containers
-        if (assign != null) {
-            String[] assignContainers = assign.split(",");
-            MQManager.assignProfileToContainers(fabricService, profile, assignContainers);
-        }
-
-        // create containers
-        if (create != null) {
-            String[] createContainers = create.split(",");
-            List<CreateContainerBasicOptions.Builder> builderList = MQManager.createContainerBuilders(
-                    dto, fabricService, "child", profileId, dto.version(), createContainers);
-            for (CreateContainerBasicOptions.Builder builder : builderList) {
-                CreateContainerMetadata[] metadatas = null;
-                try {
-                    if (builder instanceof CreateChildContainerOptions.Builder) {
-                        CreateChildContainerOptions.Builder childBuilder = (CreateChildContainerOptions.Builder) builder;
-                        builder = childBuilder.jmxUser(username).jmxPassword(password);
-                    }
-                    metadatas = fabricService.createContainers(builder.build());
-                    ShellUtils.storeFabricCredentials(session, username, password);
-                } catch (FabricAuthenticationException fae) {
-                    //If authentication fails, prompts for credentials and try again.
-                    if (builder instanceof CreateChildContainerOptions.Builder) {
-                        CreateChildContainerOptions.Builder childBuilder = (CreateChildContainerOptions.Builder) builder;
-                        promptForJmxCredentialsIfNeeded();
-                        metadatas = fabricService.createContainers(childBuilder.jmxUser(username).jmxPassword(password).build());
-                        ShellUtils.storeFabricCredentials(session, username, password);
-                    }
-                }
-            }
-        }
-        return null;
+    public Action createNewAction() {
+        assertValid();
+        return new MQCreateAction(fabricService.get(), runtimeProperties.get());
     }
 
-    private MQBrokerConfigDTO createDTO() {
-        if (Strings.isNullOrBlank(username)) {
-            username = ShellUtils.retrieveFabricUser(session);
-        }
-        if (Strings.isNullOrBlank(password)) {
-            password = ShellUtils.retrieveFabricUserPassword(session);
-        }
-
-        MQBrokerConfigDTO dto = new MQBrokerConfigDTO();
-        dto.setConfigUrl(config);
-        dto.setData(data);
-        if (ports != null && ports.length > 0) {
-            for (String port : ports) {
-                addConfig(port, dto.getPorts());
-            }
-        }
-        dto.setGroup(group);
-        dto.setJvmOpts(jvmOpts);
-        dto.setBrokerName(name);
-        dto.setProfile(profile);
-        dto.setClientProfile(clientProfile);
-        dto.setClientParentProfile(clientParentProfile);
-        dto.setNetworks(networks);
-        dto.setNetworksPassword(networksPassword);
-        dto.setNetworksUserName(networksUserName);
-        dto.setParentProfile(parentProfile);
-        dto.setProperties(properties);
-        dto.setVersion(version);
-        dto.setMinimumInstances(minimumInstances);
-        dto.setReplicas(replicas);
-        if (kind != null) {
-            dto.setKind(kind);
-        }
-        return dto;
+    void bindFabricService(FabricService fabricService) {
+        this.fabricService.bind(fabricService);
     }
 
-    private void promptForJmxCredentialsIfNeeded() throws IOException {
-        // If the username was not configured via cli, then prompt the user for the values
-        if (username == null) {
-            log.debug("Prompting user for jmx login");
-            username = ShellUtils.readLine(session, "Jmx Login for " + fabricService.getCurrentContainerName() + ": ", false);
-        }
-
-        if (password == null) {
-            password = ShellUtils.readLine(session, "Jmx Password for " + fabricService.getCurrentContainerName() + ": ", true);
-        }
+    void unbindFabricService(FabricService fabricService) {
+        this.fabricService.unbind(fabricService);
     }
 
-    private void addConfig(String config, Map<String, String> map) {
-        String key = null;
-        String value = null;
-        if (config.contains("=")) {
-            key = config.substring(0, config.indexOf("="));
-            value = config.substring(config.indexOf("=") + 1);
-        }
-        if (key != null && value != null) {
-           map.put(key, value);
-        }
+    void bindProfileCompleter(ProfileCompleter completer) {
+        bindOptionalCompleter("--profile", completer);
     }
+
+    void unbindProfileCompleter(ProfileCompleter completer) {
+        unbindOptionalCompleter(completer);
+    }
+
+    void bindParentProfileCompleter(ProfileCompleter completer) {
+        bindOptionalCompleter("--parent-profile", completer);
+    }
+
+    void unbindParentProfileCompleter(ProfileCompleter completer) {
+        unbindOptionalCompleter(completer);
+    }
+
+    void bindVersionCompleter(VersionCompleter completer) {
+        bindOptionalCompleter("--version", completer);
+    }
+
+    void unbindVersionCompleter(VersionCompleter completer) {
+        unbindOptionalCompleter(completer);
+    }
+
+
+    void bindRuntimeProperties(RuntimeProperties service) {
+        this.runtimeProperties.bind(service);
+    }
+
+    void unbindRuntimeProperties(RuntimeProperties service) {
+        this.runtimeProperties.unbind(service);
+    }
+
 }

@@ -1,18 +1,17 @@
 /**
- * Copyright (C) FuseSource, Inc.
- * http://fusesource.com
+ *  Copyright 2005-2014 Red Hat, Inc.
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ *  Red Hat licenses this file to you under the Apache License, version
+ *  2.0 (the "License"); you may not use this file except in compliance
+ *  with the License.  You may obtain a copy of the License at
  *
- *    http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or
+ *  implied.  See the License for the specific language governing
+ *  permissions and limitations under the License.
  */
 package io.fabric8.api.jmx;
 
@@ -30,11 +29,15 @@ import java.util.Map;
  */
 public interface FabricManagerMBean {
 
+    String getFabricEnvironment();
+
     List<String> getFields(String className);
 
     ServiceStatusDTO getFabricServiceStatus();
 
     Map<String, String> createContainers(Map<String, Object> options);
+
+    void importProfiles(String versionId, List<String> profileZipUrls);
 
     Map<String, Object> createProfile(String version, String name);
 
@@ -78,6 +81,11 @@ public interface FabricManagerMBean {
 
     void applyProfilesToContainers(String version, List<String> profiles, List<String> containers);
 
+    /**
+     * @param name
+     * @return
+     * @Deprecated
+     */
     @Deprecated
     List<String> getContainerProvisionList(String name);
 
@@ -93,9 +101,19 @@ public interface FabricManagerMBean {
 
     void changeCreateOptionsField(String containerId, String field, Object value);
 
+    /**
+     * @return
+     * @Deprecated
+     */
     @Deprecated
     String[] containerIds();
 
+    /**
+     * @param versionId
+     * @param profileId
+     * @return
+     * @Deprecated
+     */
     @Deprecated
     List<String> containerIdsForProfile(String versionId, String profileId);
 
@@ -105,6 +123,11 @@ public interface FabricManagerMBean {
 
     void setContainerProperty(String containerId, String property, Object value);
 
+    /**
+     * @param versionId
+     * @return
+     * @Deprecated
+     */
     @Deprecated
     List<String> containerIdsForVersion(String versionId);
 
@@ -196,7 +219,20 @@ public interface FabricManagerMBean {
 
     void setProfileOverrides(String versionId, String profileId, List<String> overrides);
 
+    void setProfileOptionals(String versionId, String profileId, List<String> optionals);
+
+    void setProfileTags(String versionId, String profileId, List<String> tags);
+
     void setProfileAttribute(String versionId, String profileId, String attributeId, String value);
+
+    /**
+     * Sets the profile system properties.
+     *
+     * @param versionId
+     * @param profileId
+     * @param systemProperties
+     */
+    void setProfileSystemProperties(String versionId, String profileId, Map<String, String> systemProperties);
 
     /*
         ContainerProvider getProvider(String containerId);
@@ -280,4 +316,14 @@ public interface FabricManagerMBean {
      *                           e.g. you can supply "apis" to find all the APIs, or "webapps" for all the webapps.
      */
     String clusterJson(String clusterPathSegment) throws Exception;
+
+    String mavenProxyDownloadUrl();
+
+    String mavenProxyUploadUrl();
+
+    String restApiUrl();
+
+    String webConsoleUrl();
+
+    String gitUrl();
 }

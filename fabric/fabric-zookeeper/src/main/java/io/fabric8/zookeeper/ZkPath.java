@@ -1,26 +1,25 @@
 /**
- * Copyright (C) FuseSource, Inc.
- * http://fusesource.com
+ *  Copyright 2005-2014 Red Hat, Inc.
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ *  Red Hat licenses this file to you under the Apache License, version
+ *  2.0 (the "License"); you may not use this file except in compliance
+ *  with the License.  You may obtain a copy of the License at
  *
- *    http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or
+ *  implied.  See the License for the specific language governing
+ *  permissions and limitations under the License.
  */
 package io.fabric8.zookeeper;
 
+import com.fasterxml.jackson.core.JsonFactory;
+import com.fasterxml.jackson.core.JsonParser;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.curator.framework.CuratorFramework;
-import org.codehaus.jackson.JsonFactory;
-import org.codehaus.jackson.JsonNode;
-import org.codehaus.jackson.JsonParser;
-import org.codehaus.jackson.map.ObjectMapper;
 import io.fabric8.zookeeper.internal.SimplePathTemplate;
 
 import java.io.ByteArrayInputStream;
@@ -59,18 +58,19 @@ public enum ZkPath {
 	CONFIG_ENSEMBLE_PROFILES       ("/fabric/configs/ensemble/profiles"),
 	CONFIG_ENSEMBLE_PROFILE        ("/fabric/configs/ensemble/profiles/{profile}"),
 
-
-
     BOOTSTRAP                      ("/fabric/registry/bootstrap"),
     MAVEN_PROXY                    ("/fabric/registry/maven/proxy/{type}"),
+    GIT_TRIGGER                    ("/fabric/registry/git/trigger"),
 	GIT                            ("/fabric/registry/clusters/git"),
 	AUTO_SCALE                     ("/fabric/registry/clusters/autoscale"),
 	OPENSHIFT                      ("/fabric/registry/clusters/openshift"),
     WEBAPPS_CLUSTERS               ("/fabric/registry/clusters/webapps"),
     WEBAPPS_CLUSTER                ("/fabric/registry/clusters/webapps/{group}"),
     SERVLETS_CLUSTER               ("/fabric/registry/clusters/servlets/{group}"),
-    MQ_CLUSTERS                    ("/fabric/registry/clusters/fusemq"),
-    MQ_CLUSTER                     ("/fabric/registry/clusters/fusemq/{group}"),
+    MQ_CLUSTERS                    ("/fabric/registry/clusters/amq"),
+    MQ_CLUSTER                     ("/fabric/registry/clusters/amq/{group}"),
+    REST_API_CLUSTERS              ("/fabric/registry/clusters/apis/rest/{apiName}"),
+    WS_API_CLUSTERS                ("/fabric/registry/clusters/apis/ws/{apiName}"),
     TASK                           ("/fabric/registry/clusters/task/{task}"),
     TAKS_MEMBERS                   ("/fabric/registry/clusters/task/{task}/0{member}"),
     TASK_MEMBER_PARTITIONS         ("/fabric/registry/containers/task/{container}/{task}"),
@@ -90,6 +90,7 @@ public enum ZkPath {
     CONTAINER_EXTENDER             ("/fabric/registry/containers/provision/{container}/extender/{extender}"),
     CONTAINER_EXTENDER_BUNDLE      ("/fabric/registry/containers/provision/{container}/extender/{extender}/bundle/{bundle}"),
     CONTAINER_EXTENDER_STATUS      ("/fabric/registry/containers/provision/{container}/extender/{extender}/status"),
+    CONTAINER_DEBUG_PORT           ("/fabric/registry/containers/debug/{container}/port"),
     CONTAINER_ENTRY                ("/fabric/registry/containers/config/{container}/{entry}"),
     CONTAINER_PORT_MIN             ("/fabric/registry/containers/config/{container}/minimumport"),
     CONTAINER_PORT_MAX             ("/fabric/registry/containers/config/{container}/maximumport"),
@@ -203,8 +204,8 @@ public enum ZkPath {
             } else if( path.endsWith(".json") ) {
                 String[] fields = ref.split("\\.");
                 ObjectMapper mapper = new ObjectMapper();
-                JsonFactory factory = mapper.getJsonFactory();
-                JsonParser jp = factory.createJsonParser(rc);
+                JsonFactory factory = mapper.getFactory();
+                JsonParser jp = factory.createParser(rc);
                 JsonNode node = mapper.readTree(jp);
                 for(String field: fields) {
                     if(!field.isEmpty()) {

@@ -32,7 +32,7 @@ All the OSGi configuration will just you the pid and key value pairs that have b
 
 The bridge will also watch the registry for changes, so any change in the profiles that are assigned to the container will be *tracked* and will immediately be applied to the local OSGi configuration of the container.
 
-## The deployment agent (fabric-agent)
+### The deployment agent (fabric-agent)
 
 The deployment agent is listening for local configuration changes on the io.fabric8.agent pid. Any change in that configuration will trigger the *deployment agent*.
 Once the *deployment agent* is triggered, it will read the whole **io.fabric8.agent** pid and calculate the bundles that the container should have installed.
@@ -61,6 +61,15 @@ To change that list of repositories for a specific profile you can simply, you t
       fabric:profile-edit --pid io.fabric8.agent/org.ops4j.pax.url.mvn.repositories=http://repositorymanager.mylocalnetwork.net default
 
 It is suggested to keep this configuration in one profile and have the rest of profiles inherit from it. The default profile, which is the root of all of the default profiles, seems the ideal place.
+
+### Configuring the download thread pool
+
+By default the *deployment agent* uses a thread pool for concurrent download of needed artifcats. The default size of the pool is 2 which you can reconfigure by configuring the option with key `io.fabric8.agent.download.threads` in the `etc\custom.properties` file. 
+
+For example to use 5 threads:
+
+    io.fabric8.agent.download.threads=5
+
 
 ### No container restarts
 

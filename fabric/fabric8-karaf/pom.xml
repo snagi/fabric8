@@ -1,57 +1,100 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!--
-  Copyright (C) FuseSource, Inc.
-  http://fusesource.com
 
-  Licensed under the Apache License, Version 2.0 (the "License");
-  you may not use this file except in compliance with the License.
-  You may obtain a copy of the License at
+     Copyright 2005-2014 Red Hat, Inc.
 
-     http://www.apache.org/licenses/LICENSE-2.0
+     Red Hat licenses this file to you under the Apache License, version
+     2.0 (the "License"); you may not use this file except in compliance
+     with the License.  You may obtain a copy of the License at
 
-  Unless required by applicable law or agreed to in writing, software
-  distributed under the License is distributed on an "AS IS" BASIS,
-  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-  See the License for the specific language governing permissions and
-  limitations under the License.
-  -->
+        http://www.apache.org/licenses/LICENSE-2.0
 
+     Unless required by applicable law or agreed to in writing, software
+     distributed under the License is distributed on an "AS IS" BASIS,
+     WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or
+     implied.  See the License for the specific language governing
+     permissions and limitations under the License.
+
+-->
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <parent>
         <groupId>io.fabric8</groupId>
         <artifactId>fabric-project</artifactId>
-        <version>1.0.0-SNAPSHOT</version>
+        <version>1.1.0-SNAPSHOT</version>
     </parent>
     <modelVersion>4.0.0</modelVersion>
 
     <artifactId>fabric8-karaf</artifactId>
-    <name>Fabric8 :: Binary Distribution</name>
+    <name>Fabric8 :: Distro :: Karaf</name>
+    <packaging>pom</packaging>
 
-    <properties>
-        <developerUserPassword></developerUserPassword>
-        <jbfuse-docs-url>http://access.redhat.com/site/documentation/en-US/Red_Hat_JBoss_Fuse/6.1</jbfuse-docs-url>
-        <jbamq-docs-url>http://access.redhat.com/site/documentation/en-US/Red_Hat_JBoss_A-MQ/6.1</jbamq-docs-url>
-    </properties>
-
-       <dependencies>
+        <dependencies>
            <!-- Karaf Dependencies -->
            <dependency>
                <groupId>org.apache.karaf</groupId>
                <artifactId>apache-karaf</artifactId>
                <version>${karaf-version}</version>
+               <scope>provided</scope>
                <type>tar.gz</type>
            </dependency>
            <dependency>
                <groupId>org.apache.karaf</groupId>
                <artifactId>apache-karaf</artifactId>
                <version>${karaf-version}</version>
+               <scope>provided</scope>
                <type>zip</type>
            </dependency>
+           
+           <!-- we want to include quickstarts -->
+            <dependency>
+                <groupId>io.fabric8.quickstarts</groupId>
+                <artifactId>fabric8-quickstarts-parent</artifactId>
+                <version>${project.version}</version>
+                <type>pom</type>
+            </dependency>
+
+            <dependency>
+                <groupId>io.fabric8.quickstarts</groupId>
+                <artifactId>fabric8-quickstarts-parent</artifactId>
+                <version>${project.version}</version>
+                <classifier>profile</classifier>
+                <type>zip</type>
+            </dependency>
+
+            <!-- Gravia Dependencies -->
+            <dependency>
+                <groupId>org.jboss.gravia</groupId>
+                <artifactId>gravia-provision</artifactId>
+            </dependency>
+            <dependency>
+                <groupId>org.jboss.gravia</groupId>
+                <artifactId>gravia-resource</artifactId>
+            </dependency>
+            <dependency>
+                <groupId>org.jboss.gravia</groupId>
+                <artifactId>gravia-repository</artifactId>
+            </dependency>
+            <dependency>
+                <groupId>org.jboss.gravia</groupId>
+                <artifactId>gravia-resolver</artifactId>
+            </dependency>
+            <dependency>
+                <groupId>org.jboss.gravia</groupId>
+                <artifactId>gravia-runtime-api</artifactId>
+            </dependency>
+            <dependency>
+                <groupId>org.jboss.gravia</groupId>
+                <artifactId>gravia-runtime-osgi</artifactId>
+            </dependency>
 
            <!-- Fabric Dependencies -->
            <dependency>
                <groupId>io.fabric8</groupId>
                <artifactId>fabric-agent</artifactId>
+           </dependency>
+           <dependency>
+               <groupId>io.fabric8</groupId>
+               <artifactId>fabric-agent-commands</artifactId>
            </dependency>
            <dependency>
                <groupId>io.fabric8</groupId>
@@ -99,8 +142,16 @@
            </dependency>
            <dependency>
                <groupId>io.fabric8</groupId>
+               <artifactId>fabric-git-hawtio</artifactId>
+           </dependency>
+           <dependency>
+               <groupId>io.fabric8</groupId>
                <artifactId>fabric-git-server</artifactId>
            </dependency>
+          <dependency>
+              <groupId>io.fabric8</groupId>
+              <artifactId>fabric-groovy</artifactId>
+          </dependency>
            <dependency>
                <groupId>io.fabric8</groupId>
                <artifactId>fabric-jaas</artifactId>
@@ -108,7 +159,6 @@
            <dependency>
                <groupId>io.fabric8</groupId>
                <artifactId>fabric-jolokia</artifactId>
-               <version>${project.version}</version>
            </dependency>
            <dependency>
                <groupId>io.fabric8</groupId>
@@ -120,6 +170,10 @@
            </dependency>
            <dependency>
                <groupId>io.fabric8</groupId>
+               <artifactId>fabric-process-container</artifactId>
+           </dependency>
+           <dependency>
+               <groupId>io.fabric8</groupId>
                <artifactId>fabric-project-deployer</artifactId>
            </dependency>
            <dependency>
@@ -128,13 +182,23 @@
            </dependency>
            <dependency>
                <groupId>io.fabric8</groupId>
+               <artifactId>fabric-rest</artifactId>
+           </dependency>
+           <dependency>
+               <groupId>io.fabric8</groupId>
+               <artifactId>fabric-cxf</artifactId>
+           </dependency>
+           <dependency>
+               <groupId>io.fabric8</groupId>
+               <artifactId>fabric-cxf-registry</artifactId>
+           </dependency>
+           <dependency>
+               <groupId>io.fabric8</groupId>
                <artifactId>fabric-web</artifactId>
-               <version>${project.version}</version>
            </dependency>
            <dependency>
                <groupId>io.fabric8</groupId>
                <artifactId>fabric-zeroconf</artifactId>
-               <version>${project.version}</version>
            </dependency>
            <dependency>
                <groupId>io.fabric8</groupId>
@@ -143,19 +207,26 @@
            <dependency>
                <groupId>io.fabric8.fab</groupId>
                <artifactId>fab-osgi</artifactId>
-               <version>${project.version}</version>
            </dependency>
            <dependency>
-               <groupId>org.fusesource.insight</groupId>
-               <artifactId>insight-log</artifactId>
-           </dependency>
-           <dependency>
-                <groupId>org.fusesource.insight</groupId>
+                <groupId>io.fabric8.insight</groupId>
                 <artifactId>insight-elasticsearch</artifactId>
            </dependency>
            <dependency>
-               <groupId>org.fusesource.insight</groupId>
+                <groupId>io.fabric8.insight</groupId>
+                <artifactId>insight-rhq-metrics</artifactId>
+           </dependency>
+           <dependency>
+               <groupId>io.fabric8.insight</groupId>
+               <artifactId>insight-log</artifactId>
+           </dependency>
+           <dependency>
+               <groupId>io.fabric8.insight</groupId>
                <artifactId>insight-log-storage</artifactId>
+           </dependency>
+           <dependency>
+               <groupId>io.fabric8.insight</groupId>
+               <artifactId>insight-metrics</artifactId>
            </dependency>
            <dependency>
                <groupId>io.fabric8</groupId>
@@ -170,35 +241,36 @@
                <artifactId>io.fabric8.karaf.branding</artifactId>
            </dependency>
            <dependency>
-               <groupId>org.jboss.amq</groupId>
+               <groupId>io.fabric8.mq</groupId>
                <artifactId>mq-fabric</artifactId>
            </dependency>
            <dependency>
              <groupId>io.fabric8</groupId>
              <artifactId>gateway-core</artifactId>
-             <version>${project.version}</version>
            </dependency>
            <dependency>
              <groupId>io.fabric8</groupId>
              <artifactId>gateway-fabric</artifactId>
-             <version>${project.version}</version>
            </dependency>
            <dependency>
              <groupId>io.fabric8</groupId>
              <artifactId>gateway-fabric-haproxy</artifactId>
-             <version>${project.version}</version>
            </dependency>
            <dependency>
                <groupId>io.fabric8</groupId>
                <artifactId>fabric-maven-proxy</artifactId>
            </dependency>
+            <dependency>
+                <groupId>io.fabric8.runtime</groupId>
+                <artifactId>fabric-runtime-container-karaf-registration</artifactId>
+                <version>1.1.0-SNAPSHOT</version>
+            </dependency>
 
            <!-- need this transitive of org.apache.servicemix.bundles.jasypt
                 to get this building in offline mode -->
            <dependency>
                <groupId>commons-codec</groupId>
                <artifactId>commons-codec</artifactId>
-               <version>${commons-codec-version}</version>
            </dependency>
 
            <!-- for jolokia -->
@@ -227,38 +299,35 @@
         <dependency>
             <groupId>org.apache.servicemix.specs</groupId>
             <artifactId>org.apache.servicemix.specs.activator</artifactId>
-            <version>${servicemix-specs-version}</version>
         </dependency>
         <dependency>
             <groupId>org.apache.servicemix.specs</groupId>
             <artifactId>org.apache.servicemix.specs.jaxp-api-1.4</artifactId>
-            <version>${servicemix-specs-version}</version>
         </dependency>
         <dependency>
             <groupId>org.apache.servicemix.specs</groupId>
             <artifactId>org.apache.servicemix.specs.jaxws-api-2.2</artifactId>
-            <version>${servicemix-specs-version}</version>
         </dependency>
 
            <!-- fix transient dependency version issue when building ESB... -->
            <dependency>
                <groupId>org.apache.aries.proxy</groupId>
                <artifactId>org.apache.aries.proxy</artifactId>
+              <version>${aries-proxy-version}</version>
            </dependency>
            <dependency>
                <groupId>org.apache.aries.proxy</groupId>
                <artifactId>org.apache.aries.proxy.impl</artifactId>
-               <version>${aries-proxy-version}</version>
+               <version>${aries-proxy-impl-version}</version>
            </dependency>
            <dependency>
                <groupId>org.apache.aries.proxy</groupId>
                <artifactId>org.apache.aries.proxy.api</artifactId>
-               <version>${aries-proxy-version}</version>
+               <version>${aries-proxy-api-version}</version>
            </dependency>
        </dependencies>
 
        <build>
-           <defaultGoal>install</defaultGoal>
            <resources>
              <resource>
                  <directory>${basedir}/../../etc</directory>
@@ -270,7 +339,6 @@
                    <filtering>true</filtering>
                </resource>
            </resources>
-
            <plugins>
                <plugin>
                    <groupId>org.apache.maven.plugins</groupId>
@@ -323,7 +391,10 @@
                                    <feature>fabric-dosgi</feature>
                                    <feature>fabric-bundle</feature>
                                    <feature>fabric-jaas</feature>
+                                   <feature>fabric-process-container</feature>
+                                   <feature>fabric-project-deployer</feature>
                                    <feature>fabric-web</feature>
+                                   <feature>gravia</feature>
 <!--
 TODO - zapped to try fix perfectus!
                                    <feature>mq-fabric</feature>
@@ -334,6 +405,8 @@ TODO - zapped to try fix perfectus!
                                    <feature>jolokia</feature>
                                    <feature>fabric-redirect</feature>
                                    <feature>fabric-hawtio</feature>
+                                   <feature>fabric-hawtio-swagger</feature>
+                                   <feature>hawtio-fabric8-branding</feature>
                                    <feature>hawtio-karaf-terminal</feature>
                                </features>
                                <includeMvnBasedDescriptors>true</includeMvnBasedDescriptors>
@@ -358,11 +431,17 @@ TODO - zapped to try fix perfectus!
                                    <concat destfile="target/dependencies/unix/apache-karaf-${karaf-version}/etc/startup.properties" append="true" eol="unix">
                                        <fileset file="target/classes/etc/startup.properties"/>
                                    </concat>
+                                   
                                    <echo message="Updating etc/config.properties in unix assembly" />
                                    <concat destfile="target/dependencies/unix/apache-karaf-${karaf-version}/etc/config.properties" append="true" eol="unix">
                                        <fileset file="src/main/append-resources/common/etc/config.properties" />
                                    </concat>
 
+                                   <echo message="Updating etc/custom.properties in unix assembly" />
+                                   <concat destfile="target/dependencies/unix/apache-karaf-${karaf-version}/etc/custom.properties" append="true" eol="unix">
+                                        <fileset file="src/main/append-resources/common/etc/custom.properties" />
+                                   </concat>
+                                   
                                    <echo message="Updating etc/org.ops4j.pax.logging.cfg in unix assembly" />
                                    <concat destfile="target/dependencies/unix/apache-karaf-${karaf-version}/etc/org.ops4j.pax.logging.cfg" append="true" eol="unix">
                                        <fileset file="src/main/append-resources/common/etc/org.ops4j.pax.logging.cfg" />
@@ -378,43 +457,51 @@ TODO - zapped to try fix perfectus!
                                        <fileset file="src/main/append-resources/common/etc/shell.init.script" />
                                    </concat>
 
-                                   <echo message="Copying bin/fusefabric in unix assembly" />
-                                   <concat destfile="target/dependencies/unix/apache-karaf-${karaf-version}/bin/fusefabric" append="true" eol="unix">
-                                       <fileset file="src/main/append-resources/unix/fusefabric" />
+                                   <echo message="Copying bin/fabric8 in unix assembly" />
+                                   <concat destfile="target/dependencies/unix/apache-karaf-${karaf-version}/bin/fabric8" append="true" eol="unix">
+                                       <fileset file="src/main/append-resources/unix/fabric8" />
                                    </concat>
-                                   <echo message="Copying bin/fusefabric.bat in windows assembly" />
-                                   <concat destfile="target/dependencies/win/apache-karaf-${karaf-version}/bin/fusefabric.bat" append="true" eol="dos">
-                                       <fileset file="src/main/append-resources/win/fusefabric.bat" />
+                                   <echo message="Copying bin/deletefabric8 in unix assembly" />
+                                   <concat destfile="target/dependencies/unix/apache-karaf-${karaf-version}/bin/deletefabric8" append="true" eol="unix">
+                                       <fileset file="src/main/append-resources/unix/deletefabric8" />
                                    </concat>
-
+                                   <echo message="Copying bin/fabric8-start in unix assembly" />
+                                   <concat destfile="target/dependencies/unix/apache-karaf-${karaf-version}/bin/fabric8-start" append="true" eol="unix">
+                                       <fileset file="src/main/append-resources/unix/fabric8-start" />
+                                   </concat>
+                                   <echo message="Copying bin/fabric8.bat in windows assembly" />
+                                   <concat destfile="target/dependencies/win/apache-karaf-${karaf-version}/bin/fabric8.bat" append="true" eol="dos">
+                                       <fileset file="src/main/append-resources/win/fabric8.bat" />
+                                   </concat>
+                                   <echo message="Copying bin/fabric8-start.bat in windows assembly" />
+                                   <concat destfile="target/dependencies/win/apache-karaf-${karaf-version}/bin/fabric8-start.bat" append="true" eol="dos">
+                                       <fileset file="src/main/append-resources/win/fabric8-start.bat" />
+                                   </concat>
+                                   <echo message="Copying bin/standalone in unix assembly" />
+                                   <concat destfile="target/dependencies/unix/apache-karaf-${karaf-version}/bin/standalone" append="true" eol="unix">
+                                       <fileset file="src/main/append-resources/unix/standalone" />
+                                   </concat>
+                                   <echo message="Copying bin/standalone.bat in windows assembly" />
+                                   <concat destfile="target/dependencies/win/apache-karaf-${karaf-version}/bin/standalone.bat" append="true" eol="dos">
+                                       <fileset file="src/main/append-resources/win/standalone.bat" />
+                                   </concat>
 
                                   <!-- now lets add to the initial import profile metadata -->
-                                  <property name="dest.profiles" value="${basedir}/target/classes/distro/fabric/import/fabric/configs/versions/1.0/profiles"/>
-                                  <property name="quickstart.src" value="${basedir}/../../quickstarts"/>
+                                  <property name="dest.profiles" value="${basedir}/target/classes/distro/fabric/import/fabric/profiles"/>
+                                  <property name="dest.profiles.zip" value="${basedir}/target/classes/distro/fabric/import"/>
 
                                   <!-- documentation -->
-                                 <copy todir="${dest.profiles}/docs/fabric">
-                                   <fileset dir="${basedir}/../../docs">
-                                   </fileset>
-                                 </copy>
+                                  <echo message="Copying documentation to wiki"/>
+                                  <copy todir="${dest.profiles}/docs/fabric">
+                                    <fileset dir="${basedir}/../../docs"/>
+                                  </copy>
 
-                                  <!-- quickstarts -->
-                                  <copy todir="${dest.profiles}/example-quickstarts-eip/data">
-                                    <fileset dir="${quickstart.src}/eip/src/main/resources/data">
-                                      <include name="**/*.xml"/>
-                                    </fileset>
-                                  </copy>
-                                  <copy todir="${dest.profiles}/example-quickstarts-cbr/data">
-                                    <fileset dir="${quickstart.src}/cbr/src/main/resources/data">
-                                      <include name="**/*.xml"/>
-                                    </fileset>
-                                  </copy>
-                                  <copy todir="${dest.profiles}/example-quickstarts-cbr.wiki/data">
-                                    <fileset dir="${quickstart.src}/cbr/src/main/resources/data">
-                                      <include name="**/*.xml"/>
-                                    </fileset>
-                                  </copy>
-                               </target>
+                                  <!-- quickstart zip to system -->
+                                  <echo message="Copying quickstarts"/>
+                                  <property name="quickstart.src" value="${basedir}/../../quickstarts"/>
+                                  <copy file="${quickstart.src}/target/profile.zip"
+                                    tofile="target/features-repo/io/fabric8/quickstarts/fabric8-quickstarts-parent/${project.version}/fabric8-quickstarts-parent-${project.version}-profile.zip"/>
+                              </target>
                            </configuration>
                        </execution>
                    </executions>
@@ -430,10 +517,10 @@ TODO - zapped to try fix perfectus!
                              <goal>merge-notices-in-repository</goal>
                          </goals>
                          <configuration>
-                             <projectName>Fuse Fabric</projectName>
+                             <projectName>Fabric8</projectName>
                              <organizationName>Red Hat, Inc. All Rights Reserved.</organizationName>
                              <organizationURL>http://redhat.com</organizationURL>
-                             <preamble>In addition to the Red Hat products, this disk contains certain third party software or components (“Third Party Components”), which are bundled as separate files or modules and separately licensed to you by said third parties. This file contains a listing of all NOTICE/NOTICE.txt files included with the Third Party Component jars in this distribution of Fuse Fabric. Please see the fabric_dependencies.txt file for the complete listing of Third Party Components and their attributed license agreements.  Your use of the Third Party Components is subject to the terms and conditions set forth in the applicable third party license agreement.  The Third Party Components are provided by Red Hat Inc. soely on an "AS IS" basis, without any warranty.  Red Hat, Inc. disclaims all warranties and indemnities with respect to the Third Party Components, express or implied, and assumes no liability with respect to the Third Party Components.  You acknowledge that the authors of the Third Party Components have no obligation to provide support to you for the Third Party Components.  You hereby undertake to comply with all licenses related to the applicable Third Party Components. All third party license agreements are contained in the licenses directory of </preamble>
+                             <preamble>In addition to the Red Hat products, this disk contains certain third party software or components (“Third Party Components”), which are bundled as separate files or modules and separately licensed to you by said third parties. This file contains a listing of all NOTICE/NOTICE.txt files included with the Third Party Component jars in this distribution of Fabric8. Please see the fabric_dependencies.txt file for the complete listing of Third Party Components and their attributed license agreements.  Your use of the Third Party Components is subject to the terms and conditions set forth in the applicable third party license agreement.  The Third Party Components are provided by Red Hat Inc. solely on an "AS IS" basis, without any warranty.  Red Hat, Inc. disclaims all warranties and indemnities with respect to the Third Party Components, express or implied, and assumes no liability with respect to the Third Party Components.  You acknowledge that the authors of the Third Party Components have no obligation to provide support to you for the Third Party Components.  You hereby undertake to comply with all licenses related to the applicable Third Party Components. All third party license agreements are contained in the licenses directory of </preamble>
                              <listDependencies>true</listDependencies>
                              <extraDependencies>org.apache.xerces:xercesImpl:${xerces.version},xalan:xalan:${xalan.version},xalan:serializer:${xalan.version},org.apache.servicemix.specs:org.apache.servicemix.specs.activator:${servicemix-specs-version},org.apache.servicemix.specs:org.apache.servicemix.specs.jaxp-api-1.4:${servicemix-specs-version},org.apache.servicemix.specs:org.apache.servicemix.specs.jaxws-api-2.2:${servicemix-specs-version}</extraDependencies>
                              <noticeSupplements>classes/notice-supplements.xml</noticeSupplements>
@@ -481,11 +568,6 @@ TODO - zapped to try fix perfectus!
                                     <type>xml</type>
                                     <classifier>features</classifier>
                                   </artifact>
-                                  <artifact>
-                                    <file>target/classes/distro/etc/activemq.xml</file>
-                                    <type>xml</type>
-                                    <classifier>activemq</classifier>
-                                  </artifact>
                             </artifacts>
                         </configuration>
                     </execution>
@@ -494,6 +576,7 @@ TODO - zapped to try fix perfectus!
                <plugin>
                    <groupId>org.apache.maven.plugins</groupId>
                    <artifactId>maven-dependency-plugin</artifactId>
+                   <version>${maven-dependency-plugin-version}</version>
                    <executions>
                        <execution>
                            <id>unpack-unix</id>

@@ -1,18 +1,17 @@
 /**
- * Copyright (C) FuseSource, Inc.
- * http://fusesource.com
+ *  Copyright 2005-2014 Red Hat, Inc.
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ *  Red Hat licenses this file to you under the Apache License, version
+ *  2.0 (the "License"); you may not use this file except in compliance
+ *  with the License.  You may obtain a copy of the License at
  *
- *    http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or
+ *  implied.  See the License for the specific language governing
+ *  permissions and limitations under the License.
  */
 package io.fabric8.service.ssh;
 
@@ -30,6 +29,10 @@ import io.fabric8.api.ContainerProvider;
 import io.fabric8.api.CreateContainerMetadata;
 import io.fabric8.api.CreationStateListener;
 import io.fabric8.api.FabricException;
+import org.apache.felix.scr.annotations.Component;
+import org.apache.felix.scr.annotations.Properties;
+import org.apache.felix.scr.annotations.Property;
+import org.apache.felix.scr.annotations.Service;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -41,9 +44,14 @@ import static io.fabric8.internal.ContainerProviderUtils.buildUninstallScript;
 /**
  * A concrete {@link io.fabric8.api.ContainerProvider} that builds Containers via ssh.
  */
+@Component(immediate = true)
+@Service(ContainerProvider.class)
+@Properties(
+        @Property(name = "fabric.container.protocol", value = SshContainerProvider.SCHEME)
+)
 public class SshContainerProvider implements ContainerProvider<CreateSshContainerOptions, CreateSshContainerMetadata> {
 
-    private static final String SCHEME = "ssh";
+    static final String SCHEME = "ssh";
 
     private static final Logger logger = LoggerFactory.getLogger(SshContainerProvider.class);
 
@@ -99,7 +107,7 @@ public class SshContainerProvider implements ContainerProvider<CreateSshContaine
                 String script = buildStartScript(container.getId(), options);
                 runScriptOnHost(options,script);
             } catch (Throwable t) {
-                logger.error("Failed to start container: "+container.getId(),t);
+                logger.error("Failed to start container: " + container.getId(), t);
             }
         }
     }
@@ -116,6 +124,7 @@ public class SshContainerProvider implements ContainerProvider<CreateSshContaine
                 String script = buildStopScript(container.getId(), options);
                 runScriptOnHost(options,script);
             } catch (Throwable t) {
+                container.setProvisionResult(Container.PROVISION_STOPPED);
                 logger.error("Failed to stop container: " + container.getId(), t);
             }
         }
@@ -133,7 +142,7 @@ public class SshContainerProvider implements ContainerProvider<CreateSshContaine
                 String script = buildUninstallScript(container.getId(), options);
                 runScriptOnHost(options, script);
             } catch (Throwable t) {
-                logger.error("Failed to stop container: "+container.getId(),t);
+                logger.error("Failed to stop container: " + container.getId(), t);
             }
         }
     }
@@ -242,7 +251,7 @@ public class SshContainerProvider implements ContainerProvider<CreateSshContaine
                 bytes = new byte[(int)file.length()];
                 fin.read(bytes);
             } catch (IOException e) {
-                logger.warn("Error reading file {}.",path);
+                logger.warn("Error reading file {}.", path);
             } finally {
                 if (fin != null) {
                     try{fin.close();}catch(Exception ex){}

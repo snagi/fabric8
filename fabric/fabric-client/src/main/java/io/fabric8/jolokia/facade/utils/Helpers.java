@@ -1,7 +1,22 @@
+/**
+ *  Copyright 2005-2014 Red Hat, Inc.
+ *
+ *  Red Hat licenses this file to you under the Apache License, version
+ *  2.0 (the "License"); you may not use this file except in compliance
+ *  with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or
+ *  implied.  See the License for the specific language governing
+ *  permissions and limitations under the License.
+ */
 package io.fabric8.jolokia.facade.utils;
 
-import org.codehaus.jackson.map.DeserializationConfig;
-import org.codehaus.jackson.map.ObjectMapper;
+import com.fasterxml.jackson.databind.DeserializationFeature;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import io.fabric8.api.CreateContainerMetadata;
 import io.fabric8.api.CreateContainerOptions;
 import io.fabric8.api.HasId;
@@ -16,7 +31,6 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * @author Stan Lewis
  */
 public class Helpers {
 
@@ -181,10 +195,10 @@ public class Helpers {
     public static ObjectMapper getObjectMapper() {
         if (mapper == null) {
             mapper = new ObjectMapper();
-            mapper.getDeserializationConfig().addMixInAnnotations(CreateContainerMetadata.class, FieldsToIgnoreForDeserializationMixin.class);
-            mapper.getDeserializationConfig().addMixInAnnotations(CreateContainerOptions.class, FieldsToIgnoreForDeserializationMixin.class);
-            mapper.getSerializationConfig().addMixInAnnotations(CreateContainerOptions.class, FieldsToIgnoreForSerializationMixin.class);
-            mapper.configure(DeserializationConfig.Feature.FAIL_ON_UNKNOWN_PROPERTIES, false);
+            mapper.addMixInAnnotations(CreateContainerMetadata.class, FieldsToIgnoreForDeserializationMixin.class);
+            mapper.addMixInAnnotations(CreateContainerOptions.class, FieldsToIgnoreForDeserializationMixin.class);
+            mapper.addMixInAnnotations(CreateContainerOptions.class, FieldsToIgnoreForSerializationMixin.class);
+            mapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
         }
         return mapper;
     }

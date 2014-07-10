@@ -1,40 +1,40 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!--
-  Copyright (C) FuseSource, Inc.
-    http://fusesource.com
 
-    Licensed under the Apache License, Version 2.0 (the "License");
-    you may not use this file except in compliance with the License.
-    You may obtain a copy of the License at
+     Copyright 2005-2014 Red Hat, Inc.
 
-       http://www.apache.org/licenses/LICENSE-2.0
+     Red Hat licenses this file to you under the Apache License, version
+     2.0 (the "License"); you may not use this file except in compliance
+     with the License.  You may obtain a copy of the License at
 
-    Unless required by applicable law or agreed to in writing, software
-    distributed under the License is distributed on an "AS IS" BASIS,
-    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-    See the License for the specific language governing permissions and
-    limitations under the License.
-  -->
+        http://www.apache.org/licenses/LICENSE-2.0
 
+     Unless required by applicable law or agreed to in writing, software
+     distributed under the License is distributed on an "AS IS" BASIS,
+     WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or
+     implied.  See the License for the specific language governing
+     permissions and limitations under the License.
+
+-->
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
   <modelVersion>4.0.0</modelVersion>
 
   <parent>
-    <groupId>org.fusesource</groupId>
+    <groupId>io.fabric8</groupId>
     <artifactId>tooling</artifactId>
-    <version>1.0.0-SNAPSHOT</version>
+    <version>1.1.0-SNAPSHOT</version>
   </parent>
 
   <groupId>io.fabric8</groupId>
   <artifactId>tooling-fabric-all</artifactId>
   <packaging>bundle</packaging>
 
-  <name>Fuse :: Tooling :: Fabric All</name>
+  <name>Fabric8 :: Tooling :: Fabric All</name>
 
   <properties>
     <fuse.osgi.export>
-      io.fabric*;version=${fabric.version},
+      io.fabric*;version=${project.version},
       org.apache.zookeeper*;version=${zookeeper-version},
       org.apache.curator.*;version=${curator.version}
     </fuse.osgi.export>
@@ -80,7 +80,7 @@
     </fuse.osgi.import.before.defaults>
     <fuse.osgi.embed.dependency>*;scope=compile|runtime;inline=false;groupId=!org.bouncycastle|org.osgi|org.slf4j|org.apache.jclouds|org.apache.jclouds.driver|org.apache.jclouds.karaf|org.apache.jclouds.labs.representations|org.apache.jclouds.labs.management|org.apache.jclouds.karaf</fuse.osgi.embed.dependency>
     <fuse.osgi.embed.transitive>true</fuse.osgi.embed.transitive>
-    <fuse.osgi.bundle.name>Fuse Fabric Tooling Plugin</fuse.osgi.bundle.name>
+    <fuse.osgi.bundle.name>Fabric Tooling Plugin</fuse.osgi.bundle.name>
   </properties>
 
   <dependencies>
@@ -93,42 +93,42 @@
     <dependency>
       <groupId>io.fabric8</groupId>
       <artifactId>fabric-client</artifactId>
-      <version>${fabric.version}</version>
+      <version>${project.version}</version>
       <scope>compile</scope>
     </dependency>
     <dependency>
       <groupId>io.fabric8</groupId>
       <artifactId>fabric-api</artifactId>
-      <version>${fabric.version}</version>
+      <version>${project.version}</version>
       <scope>compile</scope>
     </dependency>
     <dependency>
       <groupId>io.fabric8</groupId>
       <artifactId>fabric-core</artifactId>
-      <version>${fabric.version}</version>
+      <version>${project.version}</version>
       <scope>compile</scope>
     </dependency>
     <dependency>
       <groupId>io.fabric8</groupId>
       <artifactId>fabric-zookeeper</artifactId>
-      <version>${fabric.version}</version>
+      <version>${project.version}</version>
       <scope>compile</scope>
     </dependency>
     <dependency>
       <groupId>io.fabric8</groupId>
       <artifactId>fabric-core-agent-ssh</artifactId>
-      <version>${fabric.version}</version>
+      <version>${project.version}</version>
 
     </dependency>
     <dependency>
       <groupId>io.fabric8</groupId>
       <artifactId>fabric-core-agent-jclouds</artifactId>
-      <version>${fabric.version}</version>
+      <version>${project.version}</version>
     </dependency>
     <dependency>
       <groupId>io.fabric8</groupId>
       <artifactId>tooling-jclouds-all</artifactId>
-      <version>${fabric.version}</version>
+      <version>${project.version}</version>
       <scope>provided</scope>
     </dependency>
     <dependency>

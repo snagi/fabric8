@@ -1,32 +1,38 @@
 /**
- * Copyright (C) FuseSource, Inc.
- * http://fusesource.com
+ *  Copyright 2005-2014 Red Hat, Inc.
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ *  Red Hat licenses this file to you under the Apache License, version
+ *  2.0 (the "License"); you may not use this file except in compliance
+ *  with the License.  You may obtain a copy of the License at
  *
- *    http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or
+ *  implied.  See the License for the specific language governing
+ *  permissions and limitations under the License.
  */
-
 package io.fabric8.api;
 
 import java.io.IOException;
 import java.net.URI;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 public interface FabricService {
 
     final String DEFAULT_REPO_URI = "https://repo.fusesource.com/nexus/content/groups/public/";
 
+    /**
+     * Adapt the {@link FabricService} to another type
+     */
+    <T> T adapt(Class<T> type);
+
     String getEnvironment();
+
+    void substituteConfigurations(Map<String, Map<String, String>> configurations);
 
     /**
      * Track configuration changes.
@@ -153,6 +159,22 @@ public interface FabricService {
     URI getMavenRepoUploadURI();
 
     /**
+     * Returns the URL of the root of the REST API for working with fabric8. From this root you can add paths like
+     * ("/containers", "/container/{containerId}, "/versions", "/version/{versionId}/profiles", "/version/{versionId}/profile/{profileId}") etc
+     */
+    String getRestAPI();
+
+    /**
+     * Returns the URL of the git master
+     */
+    String getGitUrl();
+
+    /**
+     * Returns the URL of the web console
+     */
+    String getWebConsoleUrl();
+
+    /**
      * Returns the pseudo url of the Zookeeper. It's not an actual url as it doesn't contain a scheme.
      * It's of the format <p>ip:port</p>
      */
@@ -247,10 +269,16 @@ public interface FabricService {
      */
     void setDefaultJvmOptions(String jvmOptions);
 
+
     /**
      * Returns the web app URL for the given web application (from its id)
      */
     String containerWebAppURL(String webAppId, String name);
+
+    /**
+     * Returns the web app URL of the given webAppId, profile and version
+     */
+    String profileWebAppURL(String webAppId, String profileId, String versionId);
 
     /**
      * Returns the configuration value for the given key

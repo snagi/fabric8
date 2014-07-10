@@ -1,18 +1,17 @@
 /**
- * Copyright (C) FuseSource, Inc.
- * http://fusesource.com
+ *  Copyright 2005-2014 Red Hat, Inc.
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ *  Red Hat licenses this file to you under the Apache License, version
+ *  2.0 (the "License"); you may not use this file except in compliance
+ *  with the License.  You may obtain a copy of the License at
  *
- *    http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or
+ *  implied.  See the License for the specific language governing
+ *  permissions and limitations under the License.
  */
 package io.fabric8.boot.commands;
 
@@ -22,14 +21,11 @@ import io.fabric8.api.scr.ValidatingReference;
 import io.fabric8.boot.commands.service.JoinAvailable;
 import io.fabric8.boot.commands.support.AbstractCommandComponent;
 
-import java.util.Map;
-
 import org.apache.felix.gogo.commands.Action;
 import org.apache.felix.gogo.commands.Command;
 import org.apache.felix.gogo.commands.basic.AbstractCommand;
 import org.apache.felix.scr.annotations.Activate;
 import org.apache.felix.scr.annotations.Component;
-import org.apache.felix.scr.annotations.ConfigurationPolicy;
 import org.apache.felix.scr.annotations.Deactivate;
 import org.apache.felix.scr.annotations.Property;
 import org.apache.felix.scr.annotations.Reference;
@@ -39,7 +35,7 @@ import org.osgi.framework.BundleContext;
 import org.osgi.service.cm.ConfigurationAdmin;
 
 @Command(name = JoinCommand.FUNCTION_VALUE, scope = JoinCommand.SCOPE_VALUE, description = CreateCommand.DESCRIPTION, detailedDescription = "classpath:join.txt")
-@Component(immediate = true, policy = ConfigurationPolicy.OPTIONAL)
+@Component(immediate = true)
 @Service({ Function.class, AbstractCommand.class, JoinAvailable.class })
 @org.apache.felix.scr.annotations.Properties({
         @Property(name = "osgi.command.scope", value = JoinCommand.SCOPE_VALUE),
@@ -62,7 +58,7 @@ public class JoinCommand extends AbstractCommandComponent implements JoinAvailab
     private BundleContext bundleContext;
 
     @Activate
-    void activate(BundleContext bundleContext, Map<String, ?> props) {
+    void activate(BundleContext bundleContext) {
         this.bundleContext = bundleContext;
         activateComponent();
     }

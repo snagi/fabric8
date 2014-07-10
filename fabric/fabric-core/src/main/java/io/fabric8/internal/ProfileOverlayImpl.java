@@ -1,27 +1,28 @@
 /**
- * Copyright (C) FuseSource, Inc.
- * http://fusesource.com
+ *  Copyright 2005-2014 Red Hat, Inc.
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ *  Red Hat licenses this file to you under the Apache License, version
+ *  2.0 (the "License"); you may not use this file except in compliance
+ *  with the License.  You may obtain a copy of the License at
  *
- *    http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or
+ *  implied.  See the License for the specific language governing
+ *  permissions and limitations under the License.
  */
 package io.fabric8.internal;
 
-import io.fabric8.api.Container;
+import static io.fabric8.internal.ProfileImpl.getContainerConfigList;
 import io.fabric8.api.Constants;
-import io.fabric8.api.DataStore;
+import io.fabric8.api.Container;
 import io.fabric8.api.FabricException;
+import io.fabric8.api.FabricService;
 import io.fabric8.api.Profile;
 import io.fabric8.api.Profiles;
+import io.fabric8.internal.ProfileImpl.ConfigListType;
 import io.fabric8.utils.DataStoreUtils;
 
 import java.util.ArrayList;
@@ -30,29 +31,22 @@ import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 
-import static io.fabric8.internal.ProfileImpl.ConfigListType;
-import static io.fabric8.internal.ProfileImpl.getContainerConfigList;
-
 public class ProfileOverlayImpl implements Profile {
 
     private final Profile self;
     private final boolean substitute;
-    private final DataStore dataStore;
     private final String environment;
+    private final FabricService fabricService;
 
     public ProfileOverlayImpl(Profile self, String environment) {
-        this(self, false, null, environment);
+        this(self, environment, false, null);
     }
 
-    public ProfileOverlayImpl(Profile self, boolean substitute, String environment) {
-        this(self, substitute, null, environment);
-    }
-
-    public ProfileOverlayImpl(Profile self, boolean substitute, DataStore dataStore, String environment) {
+    public ProfileOverlayImpl(Profile self, String environment, boolean substitute, FabricService fabricService) {
         this.self = self;
         this.substitute = substitute;
-        this.dataStore = dataStore;
         this.environment = environment;
+        this.fabricService = fabricService;
     }
 
     @Override
@@ -112,13 +106,33 @@ public class ProfileOverlayImpl implements Profile {
     }
 
     @Override
+    public List<String> getTags() {
+        return getContainerConfigList(this, ConfigListType.TAGS);
+        }
+
+    @Override
     public List<String> getOverrides() {
         return getContainerConfigList(this, ConfigListType.OVERRIDES);
     }
 
     @Override
+    public List<String> getOptionals() {
+        return getContainerConfigList(this, ConfigListType.OPTIONALS);
+    }
+
+    @Override
     public Container[] getAssociatedContainers() {
         return self.getAssociatedContainers();
+    }
+
+    @Override
+    public String getIconURL() {
+        return Profiles.getProfileIconURL(self.getParents());
+    }
+
+    @Override
+    public String getSummaryMarkdown() {
+        return Profiles.getSummaryMarkdown(self.getParents());
     }
 
     @Override
@@ -146,10 +160,21 @@ public class ProfileOverlayImpl implements Profile {
     }
 
     @Override
+    public void setTags(List<String> tags) {
+        throw new UnsupportedOperationException("Overlay profiles are read-only.");
+    }
+
+    @Override
     public void setConfiguration(String pid, Map<String, String> configuration) {
         Map<String, Map<String, String>> configurations = getConfigurations();
         configurations.put(pid, configuration);
         setConfigurations(configurations);
+    }
+
+    @Override
+    public void setConfigurationFile(String fileName, byte[] data) {
+        // lets update the self profile only
+        self.setConfigurationFile(fileName, data);
     }
 
     @Override
@@ -178,15 +203,17 @@ public class ProfileOverlayImpl implements Profile {
     }
 
     @Override
+    public void setOptionals(List<String> values) {
+        throw new UnsupportedOperationException("Overlay profiles are read-only.");
+    }
+
+    @Override
     public boolean configurationEquals(Profile other) {
         return self.configurationEquals(other);
     }
 
     /**
      * Checks if the two Profiles share the same agent configuration.
-     *
-     * @param other
-     * @return
      */
     @Override
     public boolean agentConfigurationEquals(Profile other) {
@@ -195,7 +222,8 @@ public class ProfileOverlayImpl implements Profile {
             return true;
         } else if (getConfigurations().containsKey(Constants.AGENT_PID) != otherOverlay.getConfigurations().containsKey(Constants.AGENT_PID)) {
             return false;
-        } else if (getConfigurations().containsKey(Constants.AGENT_PID) && !getConfigurations().get(Constants.AGENT_PID).equals(otherOverlay.getConfigurations().get(Constants.AGENT_PID))) {
+        } else if (getConfigurations().containsKey(Constants.AGENT_PID)
+                && !getConfigurations().get(Constants.AGENT_PID).equals(otherOverlay.getConfigurations().get(Constants.AGENT_PID))) {
             return false;
         } else {
             return true;
@@ -227,7 +255,7 @@ public class ProfileOverlayImpl implements Profile {
 
     @Override
     public Profile getOverlay(boolean substitute) {
-        return new ProfileOverlayImpl(this.self, substitute, environment);
+        return new ProfileOverlayImpl(this.self, environment, substitute, fabricService);
     }
 
     @Override
@@ -361,8 +389,8 @@ public class ProfileOverlayImpl implements Profile {
                     rc.put(DataStoreUtils.stripSuffix(entry.getKey(), ".properties"), DataStoreUtils.toMap(ctrl.props));
                 }
             }
-            if (substitute && dataStore != null) {
-                dataStore.substituteConfigurations(rc);
+            if (substitute) {
+                fabricService.substituteConfigurations(rc);
             }
             return rc;
         } catch (Exception e) {
@@ -395,7 +423,7 @@ public class ProfileOverlayImpl implements Profile {
      */
     @Override
     public String getProfileHash() {
-        StringBuffer sb = new StringBuffer();
+        StringBuilder sb = new StringBuilder();
         sb.append(self.getProfileHash());
         for (Profile parent : getParents()) {
             Profile parentOverlay = parent.getOverlay();

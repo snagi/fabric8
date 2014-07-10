@@ -1,18 +1,17 @@
 /**
- * Copyright (C) FuseSource, Inc.
- * http://fusesource.com
+ *  Copyright 2005-2014 Red Hat, Inc.
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ *  Red Hat licenses this file to you under the Apache License, version
+ *  2.0 (the "License"); you may not use this file except in compliance
+ *  with the License.  You may obtain a copy of the License at
  *
- *    http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or
+ *  implied.  See the License for the specific language governing
+ *  permissions and limitations under the License.
  */
 package io.fabric8.agent.resolver;
 
@@ -20,6 +19,7 @@ import org.apache.felix.utils.version.VersionRange;
 import org.osgi.framework.BundleException;
 import org.osgi.framework.Constants;
 import org.osgi.framework.Version;
+import org.osgi.framework.namespace.IdentityNamespace;
 import org.osgi.framework.wiring.BundleCapability;
 import org.osgi.framework.wiring.BundleRevision;
 import org.osgi.resource.Capability;
@@ -69,7 +69,8 @@ public class ResourceBuilder {
         bundleSymbolicName = (String) bundleCap.attrs.get(BundleRevision.BUNDLE_NAMESPACE);
 
         // Now that we have symbolic name and version, create the resource
-        ResourceImpl resource = new ResourceImpl(bundleSymbolicName, bundleVersion);
+        String type = headerMap.get(Constants.FRAGMENT_HOST) == null ? IdentityNamespace.TYPE_BUNDLE : IdentityNamespace.TYPE_FRAGMENT;
+        ResourceImpl resource = new ResourceImpl(bundleSymbolicName, type, bundleVersion);
         if (uri != null) {
             Map<String, Object> attrs = new HashMap<String, Object>();
             attrs.put(UriNamespace.URI_NAMESPACE, uri);

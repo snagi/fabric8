@@ -1,27 +1,27 @@
 <!--
-  Copyright (C) FuseSource, Inc.
-  http://fusesource.com
 
-  Licensed under the Apache License, Version 2.0 (the "License");
-  you may not use this file except in compliance with the License.
-  You may obtain a copy of the License at
+     Copyright 2005-2014 Red Hat, Inc.
 
-     http://www.apache.org/licenses/LICENSE-2.0
+     Red Hat licenses this file to you under the Apache License, version
+     2.0 (the "License"); you may not use this file except in compliance
+     with the License.  You may obtain a copy of the License at
 
-  Unless required by applicable law or agreed to in writing, software
-  distributed under the License is distributed on an "AS IS" BASIS,
-  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-  See the License for the specific language governing permissions and
-  limitations under the License.
-  -->
+        http://www.apache.org/licenses/LICENSE-2.0
 
+     Unless required by applicable law or agreed to in writing, software
+     distributed under the License is distributed on an "AS IS" BASIS,
+     WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or
+     implied.  See the License for the specific language governing
+     permissions and limitations under the License.
+
+-->
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
     <parent>
         <groupId>io.fabric8</groupId>
         <artifactId>fabric-project</artifactId>
-        <version>1.0.0-SNAPSHOT</version>
+        <version>1.1.0-SNAPSHOT</version>
     </parent>
 
     <artifactId>fabric-agent-commands</artifactId>
@@ -39,10 +39,6 @@
         <fuse.osgi.private.pkg>
             org.jledit.utils;-split-package:=first,
             io.fabric8.commands*,
-            io.fabric8.agent.mvn,
-            io.fabric8.agent.download,
-            io.fabric8.agent.utils,
-            io.fabric8.boot.commands.support;-split-package:=first,
             io.fabric8.commands.support;-split-package:=first,
             io.fabric8.utils.features;-split-package:=first,
             io.fabric8.utils;-split-package:=first,
@@ -54,94 +50,103 @@
             org.ops4j.util.collections.*;-split-package:=first,
             org.ops4j.util.xml.*;-split-package:=first,
         </fuse.osgi.private.pkg>
+        <fuse.osgi.service.component>
+            <!-- Use explicit file locations because there is no support for wildcard resource discovery in non-osgi environments -->
+            OSGI-INF/io.fabric8.agent.commands.support.ProfileWatcherImpl.xml,
+            OSGI-INF/io.fabric8.agent.commands.ProfileDownloadArtifacts.xml,
+            OSGI-INF/io.fabric8.agent.commands.ProfileExport.xml,
+            OSGI-INF/io.fabric8.agent.commands.ProfileImport.xml,
+            OSGI-INF/io.fabric8.agent.commands.Watch.xml
+        </fuse.osgi.service.component>
+        <fuse.osgi.services.export>io.fabric8.agent.commands.ProfileWatcher</fuse.osgi.services.export>
     </properties>
 
     <dependencies>
 
-        <dependency>
-            <groupId>org.osgi</groupId>
-            <artifactId>org.osgi.core</artifactId>
-            <scope>provided</scope>
-        </dependency>
-        <dependency>
-            <groupId>org.osgi</groupId>
-            <artifactId>org.osgi.compendium</artifactId>
-            <scope>provided</scope>
-        </dependency>
-        <dependency>
-            <groupId>org.osgi</groupId>
-            <artifactId>org.osgi.enterprise</artifactId>
-            <scope>provided</scope>
-        </dependency>
-        <dependency>
-          <groupId>io.fabric8</groupId>
-          <artifactId>fabric-api</artifactId>
-        </dependency>
-        <dependency>
-          <groupId>io.fabric8</groupId>
-          <artifactId>fabric-commands</artifactId>
-        </dependency>
-        <dependency>
-          <groupId>io.fabric8</groupId>
-          <artifactId>fabric-agent</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>io.fabric8</groupId>
-            <artifactId>fabric-boot-commands</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>io.fabric8</groupId>
-            <artifactId>fabric-utils</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>io.fabric8</groupId>
-            <artifactId>fabric-zookeeper</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>io.fabric8</groupId>
-            <artifactId>fabric-core</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>org.apache.karaf.features</groupId>
-            <artifactId>org.apache.karaf.features.core</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>org.apache.karaf.features</groupId>
-            <artifactId>org.apache.karaf.features.command</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>org.apache.karaf.shell</groupId>
-            <artifactId>org.apache.karaf.shell.console</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>org.apache.karaf.shell</groupId>
-            <artifactId>org.apache.karaf.shell.config</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>org.jledit</groupId>
-            <artifactId>core</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>com.jcraft</groupId>
-            <artifactId>jsch</artifactId>
-            <version>0.1.42</version>
-            <scope>provided</scope>
-        </dependency>
-        <dependency>
-             <groupId>org.ops4j.pax.url</groupId>
-             <artifactId>pax-url-wrap</artifactId>
-             <scope>provided</scope>
-         </dependency>
-         <dependency>
-             <groupId>org.ops4j.pax.url</groupId>
-             <artifactId>pax-url-mvn</artifactId>
-             <scope>provided</scope>
-         </dependency>
+      <dependency>
+        <groupId>io.fabric8</groupId>
+        <artifactId>common-util</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>io.fabric8</groupId>
+        <artifactId>fabric-api</artifactId>
+      </dependency>
+
+      <dependency>
+        <groupId>io.fabric8</groupId>
+        <artifactId>fabric-core</artifactId>
+      </dependency>
+
+      <dependency>
+        <groupId>io.fabric8</groupId>
+        <artifactId>fabric-boot-commands</artifactId>
+      </dependency>
+      <dependency>
+        <groupId>io.fabric8</groupId>
+        <artifactId>fabric-commands</artifactId>
+      </dependency>
+
+      <dependency>
+        <groupId>io.fabric8</groupId>
+        <artifactId>fabric-utils</artifactId>
+      </dependency>
+
+      <dependency>
+        <groupId>io.fabric8</groupId>
+        <artifactId>fabric-groups</artifactId>
+      </dependency>
+
+      <dependency>
+        <groupId>io.fabric8</groupId>
+        <artifactId>fabric-zookeeper</artifactId>
+      </dependency>
+
+      <dependency>
+        <groupId>io.fabric8</groupId>
+        <artifactId>fabric-agent</artifactId>
+      </dependency>
+
+      <dependency>
+        <groupId>io.fabric8</groupId>
+        <artifactId>fabric-project-deployer</artifactId>
+      </dependency>
+
+      <dependency>
+        <groupId>org.osgi</groupId>
+        <artifactId>org.osgi.core</artifactId>
+        <scope>provided</scope>
+      </dependency>
+
+      <dependency>
+        <groupId>org.osgi</groupId>
+        <artifactId>org.osgi.compendium</artifactId>
+        <scope>provided</scope>
+      </dependency>
+
+      <dependency>
+        <groupId>org.apache.felix</groupId>
+        <artifactId>org.apache.felix.scr.annotations</artifactId>
+      </dependency>
     </dependencies>
 
     <build>
         <plugins>
-
+            <plugin>
+                <groupId>org.apache.felix</groupId>
+                <artifactId>maven-scr-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <goals>
+                            <goal>scr</goal>
+                        </goals>
+                        <configuration>
+                            <specVersion>1.2</specVersion>
+                            <strictMode>false</strictMode>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
         </plugins>
     </build>
 

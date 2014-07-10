@@ -1,3 +1,18 @@
+/**
+ *  Copyright 2005-2014 Red Hat, Inc.
+ *
+ *  Red Hat licenses this file to you under the Apache License, version
+ *  2.0 (the "License"); you may not use this file except in compliance
+ *  with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or
+ *  implied.  See the License for the specific language governing
+ *  permissions and limitations under the License.
+ */
 package io.fabric8.jolokia.facade.facades;
 
 import io.fabric8.api.*;
@@ -10,7 +25,6 @@ import java.util.Map;
 import java.util.Properties;
 
 /**
- * @author Stan Lewis
  */
 public class ContainerFacade implements Container, HasId {
 
@@ -49,6 +63,11 @@ public class ContainerFacade implements Container, HasId {
     }
 
     @Override
+    public void setType(String type) {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
     public String getId() {
         return this.id;
     }
@@ -65,6 +84,11 @@ public class ContainerFacade implements Container, HasId {
     @Override
     public boolean isAlive() {
         return (Boolean)getFieldValue("alive");
+    }
+
+    @Override
+    public void setAlive(boolean flag) {
+        throw new UnsupportedOperationException();
     }
 
     @Override
@@ -317,6 +341,11 @@ public class ContainerFacade implements Container, HasId {
     }
 
     @Override
+    public void setJmxDomains(List<String> jmxDomains) {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
     public boolean isProvisioningComplete() {
         return (Boolean)getFieldValue("provisioningComplete");
     }
@@ -379,6 +408,11 @@ public class ContainerFacade implements Container, HasId {
     @Override
     public CreateContainerMetadata<?> getMetadata() {
         throw new UnsupportedOperationException("This cannot be obtained from a remote process");
+    }
+
+    @Override
+    public String getDebugPort() {
+        return getFieldValue("debugPort");
     }
 
     @Override

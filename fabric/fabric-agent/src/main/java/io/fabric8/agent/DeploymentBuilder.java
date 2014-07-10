@@ -1,62 +1,19 @@
 /**
- * Copyright (C) FuseSource, Inc.
- * http://fusesource.com
+ *  Copyright 2005-2014 Red Hat, Inc.
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ *  Red Hat licenses this file to you under the Apache License, version
+ *  2.0 (the "License"); you may not use this file except in compliance
+ *  with the License.  You may obtain a copy of the License at
  *
- *    http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or
+ *  implied.  See the License for the specific language governing
+ *  permissions and limitations under the License.
  */
 package io.fabric8.agent;
-
-import aQute.lib.osgi.Macro;
-import aQute.lib.osgi.Processor;
-import org.apache.felix.resolver.ResolverImpl;
-import org.apache.felix.utils.version.VersionRange;
-import org.apache.felix.utils.version.VersionTable;
-import org.apache.karaf.features.BundleInfo;
-import org.apache.karaf.features.Feature;
-import org.apache.karaf.features.Repository;
-import org.fusesource.common.util.Manifests;
-import io.fabric8.agent.download.DownloadManager;
-import io.fabric8.agent.repository.AggregateRepository;
-import io.fabric8.agent.repository.StaticRepository;
-import io.fabric8.agent.resolver.FeatureNamespace;
-import io.fabric8.agent.resolver.FeatureResource;
-import io.fabric8.agent.resolver.RequirementImpl;
-import io.fabric8.agent.resolver.ResolveContextImpl;
-import io.fabric8.agent.resolver.ResourceBuilder;
-import io.fabric8.agent.resolver.ResourceImpl;
-import io.fabric8.agent.resolver.Slf4jResolverLog;
-import io.fabric8.agent.utils.AgentUtils;
-import io.fabric8.utils.MultiException;
-import io.fabric8.fab.DependencyTree;
-import io.fabric8.fab.osgi.FabBundleInfo;
-import io.fabric8.fab.osgi.FabResolver;
-import io.fabric8.fab.osgi.FabResolverFactory;
-import org.osgi.framework.BundleContext;
-import org.osgi.framework.BundleException;
-import org.osgi.framework.Constants;
-import org.osgi.framework.Filter;
-import org.osgi.framework.FrameworkUtil;
-import org.osgi.framework.Version;
-import org.osgi.framework.namespace.IdentityNamespace;
-import org.osgi.resource.Capability;
-import org.osgi.resource.Requirement;
-import org.osgi.resource.Resource;
-import org.osgi.resource.Wire;
-import org.osgi.service.resolver.ResolutionException;
-import org.osgi.service.resolver.ResolveContext;
-import org.osgi.util.tracker.ServiceTracker;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.io.IOException;
@@ -74,13 +31,55 @@ import java.util.concurrent.TimeoutException;
 import java.util.jar.Attributes;
 import java.util.jar.Manifest;
 
-import static org.apache.felix.resolver.Util.getSymbolicName;
-import static org.apache.felix.resolver.Util.getVersion;
+import aQute.lib.osgi.Macro;
+import aQute.lib.osgi.Processor;
+import io.fabric8.agent.download.DownloadManager;
+import io.fabric8.agent.repository.AggregateRepository;
+import io.fabric8.agent.repository.StaticRepository;
+import io.fabric8.agent.resolver.FeatureNamespace;
+import io.fabric8.agent.resolver.FeatureResource;
+import io.fabric8.agent.resolver.RequirementImpl;
+import io.fabric8.agent.resolver.ResolveContextImpl;
+import io.fabric8.agent.resolver.ResourceBuilder;
+import io.fabric8.agent.resolver.ResourceImpl;
+import io.fabric8.agent.resolver.Slf4jResolverLog;
+import io.fabric8.agent.utils.AgentUtils;
+import io.fabric8.common.util.Manifests;
+import io.fabric8.common.util.MultiException;
+import io.fabric8.fab.DependencyTree;
+import io.fabric8.fab.osgi.FabBundleInfo;
+import io.fabric8.fab.osgi.FabResolver;
+import io.fabric8.fab.osgi.FabResolverFactory;
+import org.apache.felix.resolver.ResolverImpl;
+import org.apache.felix.utils.version.VersionRange;
+import org.apache.felix.utils.version.VersionTable;
+import org.apache.karaf.features.BundleInfo;
+import org.apache.karaf.features.Feature;
+import org.apache.karaf.features.Repository;
+import org.osgi.framework.BundleContext;
+import org.osgi.framework.BundleException;
+import org.osgi.framework.Constants;
+import org.osgi.framework.Filter;
+import org.osgi.framework.FrameworkUtil;
+import org.osgi.framework.Version;
+import org.osgi.framework.namespace.IdentityNamespace;
+import org.osgi.resource.Capability;
+import org.osgi.resource.Requirement;
+import org.osgi.resource.Resource;
+import org.osgi.resource.Wire;
+import org.osgi.service.resolver.ResolutionException;
+import org.osgi.service.resolver.ResolveContext;
+import org.osgi.util.tracker.ServiceTracker;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import static io.fabric8.agent.resolver.UriNamespace.getUri;
 import static io.fabric8.agent.utils.AgentUtils.FAB_PROTOCOL;
 import static io.fabric8.agent.utils.AgentUtils.REQ_PROTOCOL;
 import static io.fabric8.utils.PatchUtils.extractUrl;
 import static io.fabric8.utils.PatchUtils.extractVersionRange;
+import static org.apache.felix.resolver.Util.getSymbolicName;
+import static org.apache.felix.resolver.Util.getVersion;
 
 /**
  */
@@ -464,7 +463,16 @@ public class DeploymentBuilder {
     }
 
     protected Attributes getAttributes(String uri, File file) throws Exception {
-        Manifest man = Manifests.getManifest(file);
+        Manifest man = null;
+        try {
+            man = Manifests.getManifest(file);
+        } catch (Exception e) {
+            if (file == null) {
+                throw new IOException("Error - file must not be null. Source: \"" + uri + "\"", e);
+            } else {
+                throw new IOException("Error opening file \"" + file.getCanonicalPath() + "\". Source: \"" + uri + "\", size: " + file.length(), e);
+            }
+        }
         if (man == null) {
             throw new IllegalArgumentException("Resource " + uri + " does not contain a manifest");
         }

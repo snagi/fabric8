@@ -5,7 +5,7 @@ When using properties files in Fabric8 for implementing a distributed OSGi Confi
 So there is normal variable expansion for system properties. e.g. 
 
 ```
-myDir = ${karaf.data}/cheese
+myDir = ${runtime.data}/cheese
 ```
 
 would default to the data directory of the current container plus "/cheese". However there are a number of additional property resolvers available using the ${...:...} format.
@@ -28,6 +28,18 @@ For accessing an environment variable.
 bindPort=${env:OPENSHIFT_FUSE_AMQ_PORT}
 ```
 
+
+### Groovy
+
+This property resolver allows you to use [Groovy]() script expressions to dynamically resolve values; particularly using the API calls on the [ZooKeeperFacade](https://github.com/fabric8io/fabric8/blob/master/fabric/fabric-zookeeper/src/main/java/io/fabric8/zookeeper/utils/ZooKeeperFacade.java#L30) interface.
+
+e.g. to dynamically lookup the available Cassandra hosts you can use this expression
+
+```
+bindPort=${groovy:zk.matchingDescendantStringData("/fabric/registry/clusters/cassandra/default/*/listen").join(",")}
+```
+
+Where the **matchingDescendantStringData()** function on the **zk** object looks up all the listen hosts in the ZooKeeper registry (using '*' to indicate a wildcard path) and then joins the values with a comma.
 
 ### Port
 

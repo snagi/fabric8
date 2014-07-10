@@ -1,31 +1,19 @@
 /**
- * Copyright (C) FuseSource, Inc.
- * http://fusesource.com
+ *  Copyright 2005-2014 Red Hat, Inc.
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ *  Red Hat licenses this file to you under the Apache License, version
+ *  2.0 (the "License"); you may not use this file except in compliance
+ *  with the License.  You may obtain a copy of the License at
  *
- *    http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or
+ *  implied.  See the License for the specific language governing
+ *  permissions and limitations under the License.
  */
 package io.fabric8.service;
-
-import static io.fabric8.internal.PlaceholderResolverHelpers.getSchemesForProfileConfigurations;
-import static io.fabric8.internal.PlaceholderResolverHelpers.waitForPlaceHolderResolvers;
-import static io.fabric8.utils.DataStoreUtils.substituteBundleProperty;
-import static io.fabric8.zookeeper.utils.ZooKeeperUtils.deleteSafe;
-import static io.fabric8.zookeeper.utils.ZooKeeperUtils.exists;
-import static io.fabric8.zookeeper.utils.ZooKeeperUtils.getByteData;
-import static io.fabric8.zookeeper.utils.ZooKeeperUtils.getChildren;
-import static io.fabric8.zookeeper.utils.ZooKeeperUtils.getStringData;
-import static io.fabric8.zookeeper.utils.ZooKeeperUtils.getSubstitutedPath;
-import static io.fabric8.zookeeper.utils.ZooKeeperUtils.setData;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
@@ -36,47 +24,51 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
-import org.apache.curator.framework.CuratorFramework;
-import org.apache.curator.framework.recipes.cache.PathChildrenCacheEvent;
-import org.apache.curator.framework.recipes.cache.PathChildrenCacheListener;
-import org.apache.curator.framework.recipes.cache.TreeCache;
-import org.apache.zookeeper.KeeperException;
 import io.fabric8.api.Constants;
 import io.fabric8.api.CreateContainerMetadata;
 import io.fabric8.api.CreateContainerOptions;
 import io.fabric8.api.DataStore;
 import io.fabric8.api.DataStoreRegistrationHandler;
 import io.fabric8.api.DataStoreTemplate;
-import io.fabric8.api.DynamicReference;
 import io.fabric8.api.FabricException;
-import io.fabric8.api.PlaceholderResolver;
 import io.fabric8.api.RuntimeProperties;
 import io.fabric8.api.jcip.ThreadSafe;
 import io.fabric8.api.scr.AbstractComponent;
 import io.fabric8.api.scr.ValidatingReference;
 import io.fabric8.api.visibility.VisibleForTesting;
+import io.fabric8.common.util.Closeables;
+import io.fabric8.common.util.ObjectUtils;
+import io.fabric8.common.util.Strings;
 import io.fabric8.utils.Base64Encoder;
-import io.fabric8.utils.Closeables;
 import io.fabric8.utils.DataStoreUtils;
-import io.fabric8.utils.ObjectUtils;
-import io.fabric8.utils.Strings;
-import io.fabric8.utils.SystemProperties;
+import io.fabric8.utils.FabricVersionUtils;
 import io.fabric8.zookeeper.ZkDefs;
 import io.fabric8.zookeeper.ZkPath;
-import io.fabric8.zookeeper.utils.InterpolationHelper;
-import org.osgi.framework.BundleContext;
-import org.osgi.framework.FrameworkUtil;
+import org.apache.curator.framework.CuratorFramework;
+import org.apache.curator.framework.recipes.cache.PathChildrenCacheEvent;
+import org.apache.curator.framework.recipes.cache.PathChildrenCacheListener;
+import org.apache.curator.framework.recipes.cache.TreeCache;
+import org.apache.zookeeper.KeeperException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import static io.fabric8.zookeeper.ZkPath.CONTAINER_DOMAIN;
+import static io.fabric8.zookeeper.utils.ZooKeeperUtils.deleteSafe;
+import static io.fabric8.zookeeper.utils.ZooKeeperUtils.exists;
+import static io.fabric8.zookeeper.utils.ZooKeeperUtils.getByteData;
+import static io.fabric8.zookeeper.utils.ZooKeeperUtils.getChildren;
+import static io.fabric8.zookeeper.utils.ZooKeeperUtils.getChildrenSafe;
+import static io.fabric8.zookeeper.utils.ZooKeeperUtils.getStringData;
+import static io.fabric8.zookeeper.utils.ZooKeeperUtils.getSubstitutedPath;
+import static io.fabric8.zookeeper.utils.ZooKeeperUtils.setData;
 
 @ThreadSafe
 public abstract class AbstractDataStore<T extends DataStore> extends AbstractComponent implements DataStore, PathChildrenCacheListener {
@@ -92,9 +84,7 @@ public abstract class AbstractDataStore<T extends DataStore> extends AbstractCom
 
     private final ExecutorService callbacksExecutor = Executors.newSingleThreadExecutor();
     private final ExecutorService cacheExecutor = Executors.newSingleThreadExecutor();
-    private final ExecutorService placeholderExecutor = Executors.newCachedThreadPool();
 
-    private final ConcurrentMap<String, DynamicReference<PlaceholderResolver>> placeholderResolvers = new ConcurrentHashMap<String, DynamicReference<PlaceholderResolver>>();
     private final CopyOnWriteArrayList<Runnable> callbacks = new CopyOnWriteArrayList<Runnable>();
     private Map<String, String> dataStoreProperties;
     private TreeCache treeCache;
@@ -109,7 +99,7 @@ public abstract class AbstractDataStore<T extends DataStore> extends AbstractCom
     protected void protectedActivate(Map<String, ?> configuration) throws Exception {
 
         // Remove non-String values from the configuration
-        HashMap<String, String> dataStoreProperties = new HashMap<String, String>();
+        Map<String, String> dataStoreProperties = new HashMap<String, String>();
         for (Map.Entry<String, ?> entry : configuration.entrySet()) {
             String key = entry.getKey();
             Object value = entry.getValue();
@@ -155,12 +145,16 @@ public abstract class AbstractDataStore<T extends DataStore> extends AbstractCom
         Closeables.closeQuitely(treeCache);
         callbacksExecutor.shutdownNow();
         cacheExecutor.shutdownNow();
-        placeholderExecutor.shutdownNow();
     }
 
     protected TreeCache getTreeCache() {
         assertValid();
         return treeCache;
+    }
+
+    @Override
+    public String getFabricReleaseVersion() {
+        return FabricVersionUtils.getReleaseVersion();
     }
 
     @Override
@@ -205,13 +199,13 @@ public abstract class AbstractDataStore<T extends DataStore> extends AbstractCom
      * @return
      */
     private boolean shouldRunCallbacks(String path) {
-        String karafName = runtimeProperties.get().getProperty(SystemProperties.KARAF_NAME);
-        String currentVersion = getContainerVersion(karafName);
+        String runtimeIdentity = runtimeProperties.get().getRuntimeIdentity();
+        String currentVersion = getContainerVersion(runtimeIdentity);
         return path.equals(ZkPath.CONFIG_ENSEMBLES.getPath()) ||
             path.equals(ZkPath.CONFIG_ENSEMBLE_URL.getPath()) ||
             path.equals(ZkPath.CONFIG_ENSEMBLE_PASSWORD.getPath()) ||
-            path.equals(ZkPath.CONFIG_CONTAINER.getPath(karafName)) ||
-                (currentVersion != null && path.equals(ZkPath.CONFIG_VERSIONS_CONTAINER.getPath(currentVersion, karafName)));
+            path.equals(ZkPath.CONFIG_CONTAINER.getPath(runtimeIdentity)) ||
+                (currentVersion != null && path.equals(ZkPath.CONFIG_VERSIONS_CONTAINER.getPath(currentVersion, runtimeIdentity)));
 
     }
 
@@ -248,58 +242,6 @@ public abstract class AbstractDataStore<T extends DataStore> extends AbstractCom
     @Override
     public void untrackConfiguration(Runnable callback) {
         callbacks.remove(callback);
-    }
-
-    // PlaceholderResolver stuff
-    //-------------------------------------------------------------------------
-
-    /**
-     * Performs substitution to configuration based on the registered {@link PlaceholderResolver} instances.
-     */
-    public void substituteConfigurations(final Map<String, Map<String, String>> configs) {
-        assertValid();
-
-        //Check for all required resolver schemes.
-        Set<String> requiredSchemes = getSchemesForProfileConfigurations(configs);
-        for (String scheme : requiredSchemes) {
-            placeholderResolvers.putIfAbsent(scheme, new DynamicReference<PlaceholderResolver>(scheme));
-        }
-
-        //Wait for resolvers before starting to resolve.
-        final Map<String, PlaceholderResolver> availableResolvers = waitForPlaceHolderResolvers(placeholderExecutor, requiredSchemes, getPlaceholderResolvers());
-
-        for (Map.Entry<String, Map<String, String>> entry : configs.entrySet()) {
-            final String pid = entry.getKey();
-            Map<String, String> props = entry.getValue();
-
-            for (Map.Entry<String, String> e : props.entrySet()) {
-                final String key = e.getKey();
-                final String value = e.getValue();
-                props.put(key, InterpolationHelper.substVars(value, key, null, props, new InterpolationHelper.SubstitutionCallback() {
-                    public String getValue(String toSubstitute) {
-                        if (toSubstitute != null && toSubstitute.contains(":")) {
-                            String scheme = toSubstitute.substring(0, toSubstitute.indexOf(":"));
-                            if (availableResolvers.containsKey(scheme)) {
-                                return availableResolvers.get(scheme).resolve(configs, pid, key, toSubstitute);
-                            }
-                        }
-                        return substituteBundleProperty(toSubstitute, getBundleContext());
-                    }
-                }));
-            }
-        }
-    }
-
-    private Map<String, DynamicReference<PlaceholderResolver>> getPlaceholderResolvers() {
-        return Collections.unmodifiableMap(placeholderResolvers);
-    }
-
-    private BundleContext getBundleContext() {
-        try {
-            return FrameworkUtil.getBundle(AbstractDataStore.class).getBundleContext();
-        } catch (Throwable t) {
-            return null;
-        }
     }
 
     // Container stuff
@@ -544,6 +486,22 @@ public abstract class AbstractDataStore<T extends DataStore> extends AbstractCom
     }
 
     @Override
+    public void setContainerAlive(String id, boolean flag) {
+        assertValid();
+        try {
+            if (flag) {
+                setData(getCurator(), ZkPath.CONTAINER_ALIVE.getPath(id), "alive");
+            } else {
+                deleteSafe(getCurator(), ZkPath.CONTAINER_ALIVE.getPath(id));
+            }
+        } catch (KeeperException.NoNodeException e) {
+            // ignore
+        } catch (Exception e) {
+            throw FabricException.launderThrowable(e);
+        }
+    }
+
+    @Override
     public String getContainerAttribute(String containerId, ContainerAttribute attribute, String def, boolean mandatory, boolean substituted) {
         assertValid();
         if (attribute == ContainerAttribute.Domains) {
@@ -589,6 +547,26 @@ public abstract class AbstractDataStore<T extends DataStore> extends AbstractCom
             try {
                 setData(getCurator(), ZkPath.CONTAINER_IP.getPath(containerId), "${zk:" + containerId + "/" + value + "}");
                 setData(getCurator(), ZkPath.CONTAINER_RESOLVER.getPath(containerId), value);
+            } catch (Exception e) {
+                throw FabricException.launderThrowable(e);
+            }
+        } else if (attribute == ContainerAttribute.Domains) {
+            try {
+                List<String> list = value != null ? Arrays.asList(value.split("\n")) : Collections.<String>emptyList();
+                Set<String> zkSet = new HashSet<String>(getChildrenSafe(getCurator(), ZkPath.CONTAINER_DOMAINS.getPath(containerId)));
+                for (String domain : list) {
+                    String path = CONTAINER_DOMAIN.getPath(containerId, domain);
+                    // add any missing domains
+                    if (!zkSet.remove(domain)) {
+                        setData(curator.get(), path, "");
+                    }
+                }
+
+                // now lets delete the old ones
+                for (String domain : zkSet) {
+                    String path = CONTAINER_DOMAIN.getPath(containerId, domain);
+                    deleteSafe(curator.get(), path);
+                }
             } catch (Exception e) {
                 throw FabricException.launderThrowable(e);
             }
@@ -662,6 +640,8 @@ public abstract class AbstractDataStore<T extends DataStore> extends AbstractCom
             return ZkPath.CONTAINER_PROVISION_LIST.getPath(containerId);
         case ProvisionChecksums:
             return ZkPath.CONTAINER_PROVISION_CHECKSUMS.getPath(containerId);
+        case DebugPort:
+            return ZkPath.CONTAINER_DEBUG_PORT.getPath(containerId);
         case Location:
             return ZkPath.CONTAINER_LOCATION.getPath(containerId);
         case GeoLocation:
@@ -790,20 +770,5 @@ public abstract class AbstractDataStore<T extends DataStore> extends AbstractCom
 
     protected void unbindRegistrationHandler(DataStoreRegistrationHandler service) {
         this.registrationHandler.unbind(service);
-    }
-
-    protected void bindPlaceholderResolver(PlaceholderResolver resolver) {
-        if (resolver != null) {
-            String resolverScheme = resolver.getScheme();
-            placeholderResolvers.putIfAbsent(resolverScheme, new DynamicReference<PlaceholderResolver>(resolverScheme));
-            placeholderResolvers.get(resolverScheme).bind(resolver);
-        }
-    }
-
-    protected void unbindPlaceholderResolver(PlaceholderResolver resolver) {
-        DynamicReference<PlaceholderResolver> ref = placeholderResolvers.get(resolver.getScheme());
-        if (ref != null) {
-            ref.unbind(resolver);
-        }
     }
 }

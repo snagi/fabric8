@@ -1,50 +1,20 @@
 /**
- * Copyright (C) FuseSource, Inc.
- * http://fusesource.com
+ *  Copyright 2005-2014 Red Hat, Inc.
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ *  Red Hat licenses this file to you under the Apache License, version
+ *  2.0 (the "License"); you may not use this file except in compliance
+ *  with the License.  You may obtain a copy of the License at
  *
- *    http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or
+ *  implied.  See the License for the specific language governing
+ *  permissions and limitations under the License.
  */
 package io.fabric8.api.jmx;
 
-import org.apache.curator.framework.CuratorFramework;
-import org.apache.felix.scr.annotations.Activate;
-import org.apache.felix.scr.annotations.Component;
-import org.apache.felix.scr.annotations.Deactivate;
-import org.apache.felix.scr.annotations.Reference;
-import org.codehaus.jackson.map.DeserializationConfig;
-import org.codehaus.jackson.map.MappingIterator;
-import org.codehaus.jackson.map.ObjectMapper;
-import io.fabric8.api.Container;
-import io.fabric8.api.ContainerProvider;
-import io.fabric8.api.Containers;
-import io.fabric8.api.CreateContainerBasicOptions;
-import io.fabric8.api.FabricRequirements;
-import io.fabric8.api.FabricService;
-import io.fabric8.api.MQService;
-import io.fabric8.api.Profile;
-import io.fabric8.api.ProfileRequirements;
-import io.fabric8.api.Version;
-import io.fabric8.internal.Objects;
-import io.fabric8.service.MQServiceImpl;
-import io.fabric8.utils.Maps;
-import io.fabric8.utils.Strings;
-import io.fabric8.zookeeper.ZkPath;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import javax.management.MBeanServer;
-import javax.management.MalformedObjectNameException;
-import javax.management.ObjectName;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -54,6 +24,37 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import javax.management.MBeanServer;
+import javax.management.MalformedObjectNameException;
+import javax.management.ObjectName;
+
+import com.fasterxml.jackson.databind.DeserializationFeature;
+import com.fasterxml.jackson.databind.MappingIterator;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import io.fabric8.api.Container;
+import io.fabric8.api.ContainerProvider;
+import io.fabric8.api.Containers;
+import io.fabric8.api.CreateContainerBasicOptions;
+import io.fabric8.api.FabricRequirements;
+import io.fabric8.api.FabricService;
+import io.fabric8.api.MQService;
+import io.fabric8.api.Profile;
+import io.fabric8.api.ProfileRequirements;
+import io.fabric8.api.RuntimeProperties;
+import io.fabric8.api.Version;
+import io.fabric8.common.util.JMXUtils;
+import io.fabric8.common.util.Maps;
+import io.fabric8.common.util.Strings;
+import io.fabric8.internal.Objects;
+import io.fabric8.service.MQServiceImpl;
+import io.fabric8.zookeeper.ZkPath;
+import org.apache.curator.framework.CuratorFramework;
+import org.apache.felix.scr.annotations.Activate;
+import org.apache.felix.scr.annotations.Component;
+import org.apache.felix.scr.annotations.Deactivate;
+import org.apache.felix.scr.annotations.Reference;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import static io.fabric8.api.MQService.Config.CONFIG_URL;
 import static io.fabric8.api.MQService.Config.DATA;
@@ -65,6 +66,7 @@ import static io.fabric8.api.MQService.Config.NETWORK_PASSWORD;
 import static io.fabric8.api.MQService.Config.NETWORK_USER_NAME;
 import static io.fabric8.api.MQService.Config.PARENT;
 import static io.fabric8.api.MQService.Config.REPLICAS;
+import static io.fabric8.api.MQService.Config.SSL;
 import static io.fabric8.zookeeper.utils.ZooKeeperUtils.getChildrenSafe;
 import static io.fabric8.zookeeper.utils.ZooKeeperUtils.getSubstitutedData;
 
@@ -91,13 +93,15 @@ public class MQManager implements MQManagerMXBean {
     private MBeanServer mbeanServer;
     @Reference(referenceInterface = CuratorFramework.class)
     private CuratorFramework curator;
+    @Reference(referenceInterface = RuntimeProperties.class)
+    private RuntimeProperties runtimeProperties;
 
     private MQService mqService;
 
     @Activate
     void activate() throws Exception {
         Objects.notNull(fabricService, "fabricService");
-        mqService = createMQService(fabricService);
+        mqService = createMQService(fabricService, runtimeProperties);
         if (mbeanServer != null) {
             JMXUtils.registerMBean(this, mbeanServer, OBJECT_NAME);
         }
@@ -114,8 +118,7 @@ public class MQManager implements MQManagerMXBean {
     @Override
     public List<MQBrokerConfigDTO> loadBrokerConfiguration() {
         List<MQBrokerConfigDTO> answer = new ArrayList<MQBrokerConfigDTO>();
-        Map<String, Profile> profileMap = getActiveOrRequiredBrokerProfileMap();
-        Collection<Profile> values = profileMap.values();
+        Collection<Profile> values = getActiveOrRequiredBrokerProfileMap();
         for (Profile profile : values) {
             List<MQBrokerConfigDTO> list = createConfigDTOs(mqService, profile);
             answer.addAll(list);
@@ -129,8 +132,7 @@ public class MQManager implements MQManagerMXBean {
         List<MQBrokerStatusDTO> answer = new ArrayList<MQBrokerStatusDTO>();
         Version defaultVersion = fabricService.getDefaultVersion();
         Container[] containers = fabricService.getContainers();
-        Map<String, Profile> profileMap = getActiveOrRequiredBrokerProfileMap(defaultVersion, requirements);
-        Collection<Profile> values = profileMap.values();
+        List<Profile> values = getActiveOrRequiredBrokerProfileMap(defaultVersion, requirements);
         for (Profile profile : values) {
             List<MQBrokerConfigDTO> list = createConfigDTOs(mqService, profile);
             for (MQBrokerConfigDTO configDTO : list) {
@@ -294,10 +296,10 @@ public class MQManager implements MQManagerMXBean {
                     dto.setNetworksUserName(configuration.get(NETWORK_USER_NAME));
                     dto.setNetworksPassword(configuration.get(NETWORK_PASSWORD));
                     dto.setReplicas(Maps.integerValue(configuration, REPLICAS));
-                }
-                for (String configurationKey : configuration.keySet()) {
-                    if (configurationKey.endsWith("-port")) {
-                        dto.getPorts().put(configurationKey.substring(0, configurationKey.indexOf("-port")) , configuration.get(configurationKey));
+                    for (Map.Entry<String, String> configurationEntry : configuration.entrySet()) {
+                        if (configurationEntry.getKey().endsWith("-port")) {
+                            dto.getPorts().put(configurationEntry.getKey().substring(0, configurationEntry.getKey().indexOf("-port")) , configurationEntry.getValue());
+                        }
                     }
                 }
                 answer.add(dto);
@@ -306,17 +308,17 @@ public class MQManager implements MQManagerMXBean {
         return answer;
     }
 
-    public Map<String, Profile> getActiveOrRequiredBrokerProfileMap() {
+    public List<Profile> getActiveOrRequiredBrokerProfileMap() {
         return getActiveOrRequiredBrokerProfileMap(fabricService.getDefaultVersion());
     }
 
-    public Map<String, Profile> getActiveOrRequiredBrokerProfileMap(Version version) {
+    public List<Profile> getActiveOrRequiredBrokerProfileMap(Version version) {
         return getActiveOrRequiredBrokerProfileMap(version, fabricService.getRequirements());
     }
 
-    private Map<String, Profile> getActiveOrRequiredBrokerProfileMap(Version version, FabricRequirements requirements) {
+    private List<Profile> getActiveOrRequiredBrokerProfileMap(Version version, FabricRequirements requirements) {
         Objects.notNull(fabricService, "fabricService");
-        Map<String, Profile> profileMap = new HashMap<String, Profile>();
+        List<Profile> answer = new ArrayList<Profile>();
         if (version != null) {
             Profile[] profiles = version.getProfiles();
             for (Profile profile : profiles) {
@@ -330,14 +332,13 @@ public class MQManager implements MQManagerMXBean {
                     for (Map.Entry<String, Map<String, String>> entry : entries) {
                         String key = entry.getKey();
                         if (isBrokerConfigPid(key)) {
-                            String brokerName = getBrokerNameFromPID(key);
-                            profileMap.put(brokerName, overlay);
+                            answer.add(overlay);
                         }
                     }
                 }
             }
         }
-        return profileMap;
+        return answer;
     }
 
     protected static String getBrokerNameFromPID(String key) {
@@ -352,8 +353,8 @@ public class MQManager implements MQManagerMXBean {
     @Override
     public void saveBrokerConfigurationJSON(String json) throws IOException {
         ObjectMapper mapper = new ObjectMapper();
-        mapper.configure(DeserializationConfig.Feature.FAIL_ON_UNKNOWN_PROPERTIES, false);
-        mapper.configure(DeserializationConfig.Feature.ACCEPT_SINGLE_VALUE_AS_ARRAY, true);
+        mapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
+        mapper.configure(DeserializationFeature.ACCEPT_SINGLE_VALUE_AS_ARRAY, true);
         List<MQBrokerConfigDTO> dtos = new ArrayList<MQBrokerConfigDTO>();
         MappingIterator<Object> iter = mapper.reader(MQBrokerConfigDTO.class).readValues(json);
         while (iter.hasNext()) {
@@ -369,7 +370,7 @@ public class MQManager implements MQManagerMXBean {
 
     public void saveBrokerConfiguration(List<MQBrokerConfigDTO> dtos) throws IOException {
         for (MQBrokerConfigDTO dto : dtos) {
-            createOrUpdateProfile(dto, fabricService);
+            createOrUpdateProfile(dto, fabricService, runtimeProperties);
         }
     }
 
@@ -378,10 +379,10 @@ public class MQManager implements MQManagerMXBean {
      * Creates or updates the broker profile for the given DTO and updates the requirements so that the
      * minimum number of instances of the profile is updated
      */
-    public static Profile createOrUpdateProfile(MQBrokerConfigDTO dto, FabricService fabricService) throws IOException {
+    public static Profile createOrUpdateProfile(MQBrokerConfigDTO dto, FabricService fabricService, RuntimeProperties runtimeProperties) throws IOException {
         FabricRequirements requirements = fabricService.getRequirements();
-        MQService mqService = createMQService(fabricService);
-        HashMap<String, String> configuration = new HashMap<String, String>();
+        MQService mqService = createMQService(fabricService, runtimeProperties);
+        Map<String, String> configuration = new HashMap<String, String>();
 
         List<String> properties = dto.getProperties();
         String version = dto.version();
@@ -402,7 +403,7 @@ public class MQManager implements MQManagerMXBean {
         String brokerName = dto.getBrokerName();
         if (data == null) {
             // lets use a relative path so we work on any karaf container
-            data = "${karaf.base}/data/" + brokerName;
+            data = "${runtime.data}" + brokerName;
         }
         configuration.put(DATA, data);
 
@@ -441,6 +442,11 @@ public class MQManager implements MQManagerMXBean {
             configuration.put(PARENT, parentProfile);
         }
 
+        Boolean ssl = dto.getSsl();
+        if (ssl != null) {
+            configuration.put(SSL, ssl.toString());
+        }
+
         Integer replicas = dto.getReplicas();
         if (replicas != null) {
             configuration.put(REPLICAS, replicas.toString());
@@ -475,13 +481,17 @@ public class MQManager implements MQManagerMXBean {
 
         String clientProfile = dto.clientProfile();
         if (Strings.isNotBlank(clientProfile)) {
-            mqService.createOrUpdateMQClientProfile(version, clientProfile, group, dto.getClientParentProfile());
+            String clientParentProfile = dto.getClientParentProfile();
+            if (Strings.isNullOrBlank(clientParentProfile)) {
+                clientParentProfile = "mq-client-base";
+            }
+            mqService.createOrUpdateMQClientProfile(version, clientProfile, group, clientParentProfile);
         }
         return profile;
     }
 
-    protected static MQServiceImpl createMQService(FabricService fabricService) {
-        return new MQServiceImpl(fabricService);
+    protected static MQServiceImpl createMQService(FabricService fabricService, RuntimeProperties runtimeProperties) {
+        return new MQServiceImpl(fabricService, runtimeProperties);
     }
 
     public static void assignProfileToContainers(FabricService fabricService, Profile profile, String[] assignContainers) {
@@ -491,7 +501,7 @@ public class MQManager implements MQManagerMXBean {
                 if (container == null) {
                     LOG.warn("Failed to assign profile to " + containerName + ": profile doesn't exists");
                 } else {
-                    HashSet<Profile> profiles = new HashSet<Profile>(Arrays.asList(container.getProfiles()));
+                    Set<Profile> profiles = new HashSet<Profile>(Arrays.asList(container.getProfiles()));
                     profiles.add(profile);
                     container.setProfiles(profiles.toArray(new Profile[profiles.size()]));
                     LOG.info("Profile successfully assigned to " + containerName);

@@ -1,18 +1,17 @@
 /**
- * Copyright (C) FuseSource, Inc.
- * http://fusesource.com
+ *  Copyright 2005-2014 Red Hat, Inc.
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ *  Red Hat licenses this file to you under the Apache License, version
+ *  2.0 (the "License"); you may not use this file except in compliance
+ *  with the License.  You may obtain a copy of the License at
  *
- *    http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or
+ *  implied.  See the License for the specific language governing
+ *  permissions and limitations under the License.
  */
 package io.fabric8.api;
 
@@ -23,10 +22,10 @@ public interface MQService {
     static final String MQ_PROFILE_BASE = "mq-base";
     static final String MQ_PROFILE_REPLICATED = "mq-replicated";
 
-    static final String MQ_PID_TEMPLATE = "org.fusesource.mq.fabric.template";
-    static final String MQ_CONNECTION_FACTORY_PID = "org.fusesource.mq.fabric.cf";
+    static final String MQ_PID_TEMPLATE = "io.fabric8.mq.fabric.template";
+    static final String MQ_CONNECTION_FACTORY_PID = "io.fabric8.mq.fabric.cf";
 
-    static final String MQ_FABRIC_SERVER_PID_PREFIX = "org.fusesource.mq.fabric.server-";
+    static final String MQ_FABRIC_SERVER_PID_PREFIX = "io.fabric8.mq.fabric.server-";
 
     /**
      * Creates or updates the profile for the given broker and configuration
@@ -58,6 +57,7 @@ public interface MQService {
         public static final String NETWORK_USER_NAME = "network.userName";
         public static final String NETWORK_PASSWORD = "network.password";
         public static final String PARENT = "parent";
+        public static final String SSL = "ssl";
         public static final String STANDBY_POOL = "standby.pool";
         public static final String REPLICAS = "replicas";
 

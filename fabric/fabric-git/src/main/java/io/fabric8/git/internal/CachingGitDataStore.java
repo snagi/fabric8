@@ -1,20 +1,33 @@
 /**
- * Copyright (C) FuseSource, Inc.
- * http://fusesource.com
+ *  Copyright 2005-2014 Red Hat, Inc.
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ *  Red Hat licenses this file to you under the Apache License, version
+ *  2.0 (the "License"); you may not use this file except in compliance
+ *  with the License.  You may obtain a copy of the License at
  *
- *    http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or
+ *  implied.  See the License for the specific language governing
+ *  permissions and limitations under the License.
  */
 package io.fabric8.git.internal;
+
+import io.fabric8.api.Constants;
+import io.fabric8.api.DataStore;
+import io.fabric8.api.DataStoreRegistrationHandler;
+import io.fabric8.api.FabricException;
+import io.fabric8.api.Profiles;
+import io.fabric8.api.RuntimeProperties;
+import io.fabric8.api.jcip.GuardedBy;
+import io.fabric8.api.jcip.ThreadSafe;
+import io.fabric8.api.scr.Configurer;
+import io.fabric8.api.visibility.VisibleForTesting;
+import io.fabric8.git.GitProxyService;
+import io.fabric8.git.GitService;
+import io.fabric8.utils.DataStoreUtils;
 
 import java.io.File;
 import java.io.IOException;
@@ -25,8 +38,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ExecutionException;
 
-import io.fabric8.api.scr.Configurer;
-import io.fabric8.api.visibility.VisibleForTesting;
 import org.apache.curator.framework.CuratorFramework;
 import org.apache.felix.scr.annotations.Activate;
 import org.apache.felix.scr.annotations.Component;
@@ -35,27 +46,15 @@ import org.apache.felix.scr.annotations.Deactivate;
 import org.apache.felix.scr.annotations.Properties;
 import org.apache.felix.scr.annotations.Property;
 import org.apache.felix.scr.annotations.Reference;
-import org.apache.felix.scr.annotations.ReferenceCardinality;
-import org.apache.felix.scr.annotations.ReferencePolicy;
 import org.apache.felix.scr.annotations.References;
 import org.apache.felix.scr.annotations.Service;
 import org.eclipse.jgit.api.Git;
 import org.eclipse.jgit.revwalk.RevCommit;
-import io.fabric8.api.Constants;
-import io.fabric8.api.DataStore;
-import io.fabric8.api.DataStoreRegistrationHandler;
-import io.fabric8.api.FabricException;
-import io.fabric8.api.PlaceholderResolver;
-import io.fabric8.api.RuntimeProperties;
-import io.fabric8.api.jcip.GuardedBy;
-import io.fabric8.api.jcip.ThreadSafe;
-import io.fabric8.git.GitService;
-import io.fabric8.utils.DataStoreUtils;
+import org.gitective.core.CommitUtils;
 
 import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
-import org.gitective.core.CommitUtils;
 
 /**
  * A Caching version of {@link GitDataStore} to minimise the use of git operations
@@ -64,13 +63,12 @@ import org.gitective.core.CommitUtils;
 @ThreadSafe
 @Component(name = Constants.DATASTORE_TYPE_PID, label = "Fabric8 Caching Git DataStore", policy = ConfigurationPolicy.OPTIONAL, immediate = true, metatype = true)
 @References({
-        @Reference(referenceInterface = PlaceholderResolver.class, bind = "bindPlaceholderResolver", unbind = "unbindPlaceholderResolver", cardinality = ReferenceCardinality.OPTIONAL_MULTIPLE, policy = ReferencePolicy.DYNAMIC),
         @Reference(referenceInterface = DataStoreRegistrationHandler.class, bind = "bindRegistrationHandler", unbind = "unbindRegistrationHandler"),
         @Reference(referenceInterface = CuratorFramework.class, bind = "bindCurator", unbind = "unbindCurator"),
         @Reference(referenceInterface = GitService.class, bind = "bindGitService", unbind = "unbindGitService"),
-        @Reference(referenceInterface = RuntimeProperties.class, bind = "bindRuntimeProperties", unbind = "unbindRuntimeProperties"),
-}
-)
+        @Reference(referenceInterface = GitProxyService.class, bind = "bindGitProxyService", unbind = "unbindGitProxyService"),
+        @Reference(referenceInterface = RuntimeProperties.class, bind = "bindRuntimeProperties", unbind = "unbindRuntimeProperties")
+})
 @Service(DataStore.class)
 @Properties(
         @Property(name = "type", value = CachingGitDataStore.TYPE)
@@ -90,8 +88,8 @@ public final class CachingGitDataStore extends GitDataStore {
                     return gitOperation(new GitOperation<VersionData>() {
                         public VersionData call(Git git, GitContext context) throws Exception {
                             VersionData data = new VersionData();
-                            pouplateVersionData(git, version, data);
-                            pouplateVersionData(git, "master", data);
+                            populateVersionData(git, version, data);
+                            populateVersionData(git, "master", data);
                             return data;
                         }
                     }, true); //We always pull when the item is not present in the cache to prevent loading stale data.
@@ -121,7 +119,7 @@ public final class CachingGitDataStore extends GitDataStore {
         return data;
     }
 
-    protected void pouplateVersionData(Git git, String branch, VersionData data) throws Exception {
+    protected void populateVersionData(Git git, String branch, VersionData data) throws Exception {
         assertValid();
         checkoutVersion(git, branch);
         File profilesDir = getProfilesDirectory(git);
@@ -141,9 +139,9 @@ public final class CachingGitDataStore extends GitDataStore {
         // TODO we could recursively scan for magic ".profile" files or something
         // then we could put profiles into nicer tree structure?
         String profile = file.getName();
-        if (useDirectoriesForProfiles) {
-            if (profile.endsWith(PROFILE_FOLDER_SUFFIX)) {
-                profile = prefix + profile.substring(0, profile.length() - PROFILE_FOLDER_SUFFIX.length());
+        if (Profiles.useDirectoriesForProfiles) {
+            if (profile.endsWith(Profiles.PROFILE_FOLDER_SUFFIX)) {
+                profile = prefix + profile.substring(0, profile.length() - Profiles.PROFILE_FOLDER_SUFFIX.length());
             } else {
                 // lets recurse all children
                 File[] files = file.listFiles();

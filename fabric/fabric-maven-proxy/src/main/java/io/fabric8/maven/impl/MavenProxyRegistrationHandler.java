@@ -1,29 +1,27 @@
-/*
- * Copyright (C) FuseSource, Inc.
- *   http://fusesource.com
+/**
+ *  Copyright 2005-2014 Red Hat, Inc.
  *
- *   Licensed under the Apache License, Version 2.0 (the "License");
- *   you may not use this file except in compliance with the License.
- *   You may obtain a copy of the License at
+ *  Red Hat licenses this file to you under the Apache License, version
+ *  2.0 (the "License"); you may not use this file except in compliance
+ *  with the License.  You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
- *   Unless required by applicable law or agreed to in writing, software
- *   distributed under the License is distributed on an "AS IS" BASIS,
- *   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- *   See the License for the specific language governing permissions and
- *   limitations under the License.
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or
+ *  implied.  See the License for the specific language governing
+ *  permissions and limitations under the License.
  */
-
 package io.fabric8.maven.impl;
 
+import io.fabric8.api.RuntimeProperties;
 import io.fabric8.api.jcip.GuardedBy;
 import io.fabric8.api.jcip.ThreadSafe;
 import io.fabric8.api.scr.AbstractComponent;
 import io.fabric8.api.scr.Configurer;
 import io.fabric8.api.scr.ValidatingReference;
 import io.fabric8.maven.MavenProxy;
-import io.fabric8.utils.SystemProperties;
 import io.fabric8.zookeeper.ZkPath;
 import org.apache.curator.framework.CuratorFramework;
 import org.apache.curator.framework.state.ConnectionState;
@@ -60,6 +58,8 @@ public final class MavenProxyRegistrationHandler extends AbstractComponent imple
     private final ValidatingReference<HttpService> httpService = new ValidatingReference<HttpService>();
     @Reference(referenceInterface = CuratorFramework.class)
     private final ValidatingReference<CuratorFramework> curator = new ValidatingReference<CuratorFramework>();
+    @Reference(referenceInterface = RuntimeProperties.class)
+    private final ValidatingReference<RuntimeProperties> runtimeProperties = new ValidatingReference<RuntimeProperties>();
 
     private final Map<String, Set<String>> registeredProxies;
 
@@ -103,7 +103,7 @@ public final class MavenProxyRegistrationHandler extends AbstractComponent imple
     private String proxyPassword;
     @Property(name = "nonProxyHosts", label = "Non Proxy Hosts", description = "Hosts that should be reached without using a Proxy")
     private String nonProxyHosts;
-    @Property(name = "name", label = "Container Name", description = "The name of the container", value = "${karaf.name}")
+    @Property(name = "name", label = "Container Name", description = "The name of the container", value = "${runtime.id}")
     private String name;
 
     @GuardedBy("AtomicBoolean") private final AtomicBoolean connected = new AtomicBoolean(false);
@@ -119,9 +119,9 @@ public final class MavenProxyRegistrationHandler extends AbstractComponent imple
     @Activate
     void init(Map<String, ?> configuration) throws Exception {
         configurer.configure(configuration, this);
-        this.mavenDownloadProxyServlet = new MavenDownloadProxyServlet(localRepository, remoteRepositories, appendSystemRepos, updatePolicy, checksumPolicy, proxyProtocol, proxyHost, proxyPort, proxyUsername, proxyPassword, nonProxyHosts);
+        this.mavenDownloadProxyServlet = new MavenDownloadProxyServlet(runtimeProperties.get(), localRepository, remoteRepositories, appendSystemRepos, updatePolicy, checksumPolicy, proxyProtocol, proxyHost, proxyPort, proxyUsername, proxyPassword, nonProxyHosts);
         this.mavenDownloadProxyServlet.start();
-        this.mavenUploadProxyServlet = new MavenUploadProxyServlet(localRepository, remoteRepositories, appendSystemRepos, updatePolicy, checksumPolicy, proxyProtocol, proxyHost, proxyPort, proxyUsername, proxyPassword, nonProxyHosts);
+        this.mavenUploadProxyServlet = new MavenUploadProxyServlet(runtimeProperties.get(), localRepository, remoteRepositories, appendSystemRepos, updatePolicy, checksumPolicy, proxyProtocol, proxyHost, proxyPort, proxyUsername, proxyPassword, nonProxyHosts);
         this.mavenUploadProxyServlet.start();
         try {
             HttpContext base = httpService.get().createDefaultHttpContext();
@@ -224,5 +224,13 @@ public final class MavenProxyRegistrationHandler extends AbstractComponent imple
 
     void unbindHttpService(HttpService service) {
         this.httpService.unbind(service);
+    }
+
+    void bindRuntimeProperties(RuntimeProperties service) {
+        this.runtimeProperties.bind(service);
+    }
+
+    void unbindRuntimeProperties(RuntimeProperties service) {
+        this.runtimeProperties.unbind(service);
     }
 }

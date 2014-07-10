@@ -1,20 +1,20 @@
 <!--
-  Copyright (C) FuseSource, Inc.
-  http://fusesource.com
 
-  Licensed under the Apache License, Version 2.0 (the "License");
-  you may not use this file except in compliance with the License.
-  You may obtain a copy of the License at
+     Copyright 2005-2014 Red Hat, Inc.
 
-     http://www.apache.org/licenses/LICENSE-2.0
+     Red Hat licenses this file to you under the Apache License, version
+     2.0 (the "License"); you may not use this file except in compliance
+     with the License.  You may obtain a copy of the License at
 
-  Unless required by applicable law or agreed to in writing, software
-  distributed under the License is distributed on an "AS IS" BASIS,
-  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-  See the License for the specific language governing permissions and
-  limitations under the License.
-  -->
+        http://www.apache.org/licenses/LICENSE-2.0
 
+     Unless required by applicable law or agreed to in writing, software
+     distributed under the License is distributed on an "AS IS" BASIS,
+     WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or
+     implied.  See the License for the specific language governing
+     permissions and limitations under the License.
+
+-->
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
@@ -24,14 +24,16 @@
         <version>1.10</version>
     </parent>
 
-    <groupId>org.jboss.fuse.bom</groupId>
-    <artifactId>jboss-fuse-parent</artifactId>
+    <groupId>io.fabric8.bom</groupId>
+    <artifactId>fabric8-bom</artifactId>
+    <version>1.1.0-SNAPSHOT</version>
     <packaging>pom</packaging>
-    <version>1.0.0-SNAPSHOT</version>
 
-    <name>JBoss Fuse</name>
+    <name>Fabric8</name>
+    <description>Fabric8 the open source integration platform</description>
 
-    <url>http://www.jboss.org/products/fuse</url>
+    <url>http://fabric8.io/</url>
+    <inceptionYear>2011</inceptionYear>
 
     <organization>
         <name>Red Hat</name>
@@ -40,22 +42,39 @@
 
     <licenses>
         <license>
-            <name>The Apache Software License, Version 2.0</name>
+            <name>Apache License, Version 2.0</name>
             <url>http://www.apache.org/licenses/LICENSE-2.0.txt</url>
             <distribution>repo</distribution>
         </license>
     </licenses>
 
+    <!-- including A developer as it's required by the maven poms going into central -->
+    <developers>
+      <developer>
+        <id>geeks</id>
+        <name>Fabric8 Development Team</name>
+        <organization>fabric8</organization>
+        <organizationUrl>http://fabric8.io/</organizationUrl>
+      </developer>
+    </developers>
+
+    <scm>
+      <connection>scm:git:git@github.com:fabric8io/fabric8.git</connection>
+      <developerConnection>scm:git:git@github.com:fabric8io/fabric8.git</developerConnection>
+      <url>http://github.com/fabric8io/fabric8/tree/master</url>
+    </scm>
+
     <prerequisites>
-        <maven>3.0.2</maven>
+        <maven>3.0.4</maven>
     </prerequisites>
 
     <properties>
-        <perfectus-build>357</perfectus-build>
+        <license.dir>${project.parent.basedir}/etc</license.dir>
+        <perfectus-build>379</perfectus-build>
         <perfectus.version>${perfectus-build}</perfectus.version>
         <forge-project-id>fabric</forge-project-id>
-        <maven.compiler.source>1.6</maven.compiler.source>
-        <maven.compiler.target>1.6</maven.compiler.target>
+        <maven.compiler.source>1.7</maven.compiler.source>
+        <maven.compiler.target>1.7</maven.compiler.target>
 
         <!-- OSGi bundles properties -->
         <fuse.osgi.bundle.name>${project.name}</fuse.osgi.bundle.name>
@@ -68,10 +87,10 @@
             org.springframework.osgi.*;version="[1.2,2)",
             org.springframework.*;version="[3.1,4)",
             org.apache.commons.logging.*;version="[1.1,2)",
-            org.apache.camel.*;version="[2.12,3)",
+            org.apache.camel.*;version="[2.13,3)",
             org.apache.felix.gogo.commands.*;version="[0.10,1)",
             org.apache.felix.service.command.*;version="[0.10,1)",
-            scala*;version="[2.9,2.10]"
+            scala*;version="[2.11,2.12)"
         </fuse.osgi.import.defaults>
         <fuse.osgi.import.before.defaults />
         <fuse.osgi.import.additional />
@@ -100,192 +119,80 @@
         <fuse.osgi.capabilities.require />
         <fuse.osgi.service.component/>
 
-        <fmc-port>8107</fmc-port>
-
-        <fabric.version>1.0.0-SNAPSHOT</fabric.version>
         <fabric-perfectus-version>7.3.0.redhat-${perfectus-build}</fabric-perfectus-version>
-        <fuse.version>6.1.0.redhat-SNAPSHOT</fuse.version>
         <full-perfectus-build>610${perfectus-build}</full-perfectus-build>
 
+         <!-- ServiceMix legal shared resources -->
+        <servicemix.legal.version>1.0</servicemix.legal.version>
 
-        <activemq-version>5.9.0.redhat-${full-perfectus-build}</activemq-version>
-        <jmdns-version>3.4.1</jmdns-version>
+        <activemq-version>5.10.0</activemq-version>
         <aether-version>1.11</aether-version>
+        <ant.bundle.version>1.8.2_2</ant.bundle.version>
         <antlr-version>3.3</antlr-version>
         <archetype-packaging.version>2.2</archetype-packaging.version>
-        <aries-blueprint-version>1.0.1.redhat-${full-perfectus-build}</aries-blueprint-version>
-        <aries-jmx-version>1.0.1.redhat-${full-perfectus-build}</aries-jmx-version>
-        <aries-transaction-version>1.0.1.redhat-${full-perfectus-build}</aries-transaction-version>
-        <aries-util-version>1.0.1.redhat-${full-perfectus-build}</aries-util-version>
-        <aries.version>1.0.0</aries.version>
-        <aries-proxy-version>1.0.1.redhat-${full-perfectus-build}</aries-proxy-version>
-        <asm.version>4.1</asm.version>
+        <aries-blueprint-api-version>1.0.0</aries-blueprint-api-version>
+        <aries-blueprint-cm-version>1.0.3</aries-blueprint-cm-version>
+        <aries-blueprint-core-version>1.4.0</aries-blueprint-core-version>
+        <aries-blueprint-version>1.1.0</aries-blueprint-version>
+        <aries-jmx-version>1.1.0</aries-jmx-version>
+        <aries-proxy-api-version>1.0.0</aries-proxy-api-version>
+        <aries-proxy-impl-version>1.0.2</aries-proxy-impl-version>
+        <aries-proxy-version>1.0.1</aries-proxy-version>
+        <aries-util-version>1.1.0</aries-util-version>
+        <arquillian-core-version>1.1.1.Final</arquillian-core-version>
+        <arquillian-junit-container-version>1.0.0.CR7</arquillian-junit-container-version>
+        <arquillian-osgi-version>2.1.0.CR15</arquillian-osgi-version>
+        <arquillian-tomcat-version>1.0.0.CR6</arquillian-tomcat-version>
+        <arquillian-weld-ee-embedded-version>1.0.0.CR3</arquillian-weld-ee-embedded-version>
         <asm.bundle.version>3.3.1_1</asm.bundle.version>
-        <drools.bundle.version>5.5.0.Final_2</drools.bundle.version>
-        <mvel.bundle.version>2.1.3.Final</mvel.bundle.version>
-        <bndlib-version>1.43.0</bndlib-version>
+        <asm.version>4.1</asm.version>
         <blueprint-web-version>1.0.0</blueprint-web-version>
-        <brew-version>0.2.11</brew-version>
-        <camel-version>2.12.0.redhat-${full-perfectus-build}</camel-version>
-        <camel-version-range>[2.12,3)</camel-version-range>
-        <coffeebar-version>0.2.11</coffeebar-version>
+        <bndlib-version>1.43.0</bndlib-version>
+        <bouncycastle-version>1.49</bouncycastle-version>
+        <camel-version-range>[2.13,3)</camel-version-range>
+        <camel-version>2.13.2</camel-version>
+        <cassandra-version>2.0.7</cassandra-version>
+        <codahale-metrics-version>3.0.1</codahale-metrics-version>
         <commons-beanutils-version>1.8.3</commons-beanutils-version>
         <commons-codec-version>1.6</commons-codec-version>
         <commons-collections-version>3.2.1</commons-collections-version>
-        <commons-compress-version>1.4.1</commons-compress-version>
-        <commons-io-version>1.4_2</commons-io-version>
-        <commons-lang-version>2.6</commons-lang-version>
-        <common-math-version>2.2</common-math-version>
-        <commons-pool-version>1.5.4_3</commons-pool-version>
+        <commons-compress-version>1.8</commons-compress-version>
+        <commons-fileupload-version>1.3.1</commons-fileupload-version>
         <commons-httpclient-version>3.1</commons-httpclient-version>
-        <cxf-version>2.7.0.redhat-${full-perfectus-build}</cxf-version>
-<!--
-        for use by fabric-docker-api
-        though lets use resteasy for now until 3.x goes GA
-        <cxf-3-version>3.0.0-milestone1</cxf-3-version>
--->
-        <curator.version>2.3.0</curator.version>
+        <commons-io2-version>2.4</commons-io2-version>
+        <commons-lang-version>2.6</commons-lang-version>
+        <commons-lang3-version>3.3.2</commons-lang3-version>
+        <commons-pool-version>1.6</commons-pool-version>
+        <curator.version>2.5.0</curator.version>
+        <cxf-version>2.7.11</cxf-version>
+        <cxf-version-range>[2.7,3.0)</cxf-version-range>
+        <deltaspike-version>0.7</deltaspike-version>
+        <dnsjava.version>2.1.1</dnsjava.version>
         <drools-camel-artifactId>kie-camel</drools-camel-artifactId>
         <drools-camel-groupId>org.kie</drools-camel-groupId>
         <drools-spring-artifactId>kie-spring</drools-spring-artifactId>
         <drools-spring-groupId>org.kie</drools-spring-groupId>
-        <drools-version>6.0.0.Final</drools-version>
-<!--
-        <drools-camel-artifactId>drools-camel</drools-camel-artifactId>
-        <drools-camel-groupId>org.drools</drools-camel-groupId>
-        <drools-spring-artifactId>drools-spring</drools-spring-artifactId>
-        <drools-spring-groupId>org.drools</drools-spring-groupId>
-        <drools-version>5.5.0.Final</drools-version>
--->
-        <equinox.version>3.7.1.R37x_v20110808-1106</equinox.version>
+        <drools-version>6.1.0.CR1</drools-version>
         <exec-maven-plugin-version>1.2.1</exec-maven-plugin-version>
-        <fabric-version>${fabric.version}</fabric-version>
-        <felix-framework-version>4.0.3.redhat-${full-perfectus-build}</felix-framework-version>
-        <felix-framework-security-version>2.0.1.redhat-${full-perfectus-build}</felix-framework-security-version>
         <felix-configadmin-version>1.4.0.redhat-${full-perfectus-build}</felix-configadmin-version>
         <felix-eventadmin-version>1.3.0.redhat-${full-perfectus-build}</felix-eventadmin-version>
         <felix-fileinstall-version>3.3.11.redhat-${full-perfectus-build}</felix-fileinstall-version>
+        <felix-framework-security-version>2.0.1.redhat-${full-perfectus-build}</felix-framework-security-version>
+        <felix-framework-version>4.0.3.redhat-${full-perfectus-build}</felix-framework-version>
         <felix-gogo-version>0.11.0.redhat-${full-perfectus-build}</felix-gogo-version>
+        <felix-http-version>2.2.1</felix-http-version>
         <felix-metatype-version>1.0.8</felix-metatype-version>
         <felix-resolver-version>1.0.0</felix-resolver-version>
-        <felix-scr-version>1.8.0.redhat-${full-perfectus-build}</felix-scr-version>
-        <felix-scr-plugin-version>1.15.0</felix-scr-plugin-version>
-        <felix-scr-annotations-version>1.9.6</felix-scr-annotations-version>
+        <felix-scr-annotations-version>1.9.8</felix-scr-annotations-version>
         <felix-scr-ds-annotations-version>1.2.4</felix-scr-ds-annotations-version>
+        <felix-scr-plugin-version>1.16.0</felix-scr-plugin-version>
+        <felix-scr-version>1.6.2</felix-scr-version>
         <felix-utils-version>1.2.1.redhat-${full-perfectus-build}</felix-utils-version>
-        <fuse-cdc-version>1.1.0</fuse-cdc-version>
-        <guava-version>15.0</guava-version>
-        <guava.osgi.version.clean>15.0</guava.osgi.version.clean>
-        <hadoop-version>1.2.1</hadoop-version>
-        <hawtbuf-version>1.9</hawtbuf-version>
-        <hawtdispatch-version>1.19</hawtdispatch-version>
-        <hawtio-version>1.2-redhat-357</hawtio-version>
-        <hawtio-swagger-version>1.0.2</hawtio-swagger-version>
-        <jackson-version>1.9.12</jackson-version>
-        <jackson-2-version>2.3.1</jackson-2-version>
-        <jackson-2-annotations-version>2.3.0</jackson-2-annotations-version>
-        <jackson-module-scala-version>2.1.5_2</jackson-module-scala-version>
-        <jansi-version>1.11.redhat-1</jansi-version>
-        <jasypt-version>1.9.1</jasypt-version>
-        <jasypt-smx-version>1.9.1_1</jasypt-smx-version>
-        <jaxb-api-version>2.1</jaxb-api-version>
-        <jaxb-version>2.1.13</jaxb-version>
-        <jclouds-version>1.7.1</jclouds-version>
-        <jclouds-karaf-version>1.7.1</jclouds-karaf-version>
-        <jclouds.osgi.version.clean>${jclouds-version}</jclouds.osgi.version.clean>
-        <jersey-version>1.12</jersey-version>
-        <jettison.version>1.3.1</jettison.version>
-        <jetty6-version>6.1.26_4</jetty6-version>
-        <jetty-plugin-groupId>org.mortbay.jetty</jetty-plugin-groupId>
-        <jetty-plugin-version>8.1.9.v20130131</jetty-plugin-version>
-        <jetty-version>8.1.9.v20130131</jetty-version>
-        <jgit.version>3.1.0.201310021548-r</jgit.version>
-        <jledit.version>0.2.1</jledit.version>
-        <jolokia-version>1.1.5</jolokia-version>
-        <jms-1.1-version>1.1.1</jms-1.1-version>
-        <jna-version>3.3.0</jna-version>
-        <jna-bundle-version>1.1</jna-bundle-version>
-        <jsch-smx-version>0.1.49_1</jsch-smx-version>
-        <json4s-version>3.2.4_1</json4s-version>
-        <junit-version>4.11</junit-version>
-        <karaf-version>2.3.0.redhat-${full-perfectus-build}</karaf-version>
-        <libvirt-version>0.4.6</libvirt-version>
-        <libvirt-bundle-version>1.1</libvirt-bundle-version>
-        <!-- TODO - zap with logback?? -->
-        <log4j-version>1.2.16</log4j-version>
-        <logback-version>1.0.0</logback-version>
-        <maven-version>3.0.3</maven-version>
-        <maven-fab-plugin-version>1.16</maven-fab-plugin-version>
-        <mina-version>2.0.7</mina-version>
-        <mongo-java-driver-version>2.11.3</mongo-java-driver-version>
-        <mvel-version>2.1.7.Final</mvel-version>
-        <openshift.client.version>2.5.0.Final</openshift.client.version>
-        <openshift.client.groupId>com.openshift</openshift.client.groupId>
-        <ops4j-base.version>1.4.0</ops4j-base.version>
-        <ops4j-pax-exam-version>2.3.1</ops4j-pax-exam-version>
-        <ops4j-pax-swissbox-bnd.version>1.6.0</ops4j-pax-swissbox-bnd.version>
-        <ops4j-pax-swissbox-property.version>1.6.0</ops4j-pax-swissbox-property.version>
-        <ops4j-pax-swissbox-optional-jcl.version>1.6.0</ops4j-pax-swissbox-optional-jcl.version>
-        <ops4j-pax-web-version>3.0.5</ops4j-pax-web-version>
-        <org.apache.servicemix.bundles.jzlib.version>1.0.7_1</org.apache.servicemix.bundles.jzlib.version>
-        <osgi-version>5.0.0</osgi-version>
-        <osgi-compendium-version>4.3.1</osgi-compendium-version>
-        <osgi-enterprise-version>5.0.0</osgi-enterprise-version>
-        <pax.logging.version>1.7.2</pax.logging.version>
-        <pax-runner-version>1.7.6</pax-runner-version>
-        <pax.url.version>1.3.7</pax.url.version>
-        <pax.url.mvn.version>${pax.url.version}</pax.url.mvn.version>
-        <pax.url.mvn.commons.version>${pax.url.version}</pax.url.mvn.commons.version>
-        <quartz-version>1.8.5_1</quartz-version>
-        <reflections-version>0.9.8_1</reflections-version>
-        <rrd4j-version>2.0.7</rrd4j-version>
-        <scala-version>2.9.1</scala-version>
-        <scala-library-version>2.10.2</scala-library-version>
-        <scala-osgi-version>2.9.1</scala-osgi-version>
-        <scala-plugin-version>2.15.1</scala-plugin-version>
-        <scalamd-version>1.5</scalamd-version>
-        <scalate-version>1.5.3</scalate-version>
-        <scalatest-version>1.6.1</scalatest-version>
-        <servicemix-components-version>2013.01.0.redhat-${full-perfectus-build}</servicemix-components-version>
-        <servicemix-features-version>4.5.0.redhat-${full-perfectus-build}</servicemix-features-version>
-        <servicemix-nmr-version>1.6.0.redhat-${full-perfectus-build}</servicemix-nmr-version>
-        <servicemix-specs-version>2.3.0.redhat-${full-perfectus-build}</servicemix-specs-version>
-        <servicemix-utils-version>1.6.0.redhat-${full-perfectus-build}</servicemix-utils-version>
-        <servlet-api-version>2.5</servlet-api-version>
-        <sigar-version>1.6.4</sigar-version>
-        <slf4j-api-version>1.6.6</slf4j-api-version>
-        <slf4j-version>1.6.6</slf4j-version>
-        <spring-osgi-version>1.2.1</spring-osgi-version>
-        <spring-version>3.2.7.RELEASE</spring-version>
-        <spring-bundle-version>3.2.7.RELEASE_1</spring-bundle-version>
-        <sshd-version>0.9.0</sshd-version>
-        <sshj.version>0.7.0</sshj.version>
-        <swagger-version>1.3.2_1</swagger-version>
-        <tinybundles-version>1.0.0</tinybundles-version>
-        <vertx-version>2.0.2-final</vertx-version>
-        <wagon-webdav-plugin-version>1.0-beta-7</wagon-webdav-plugin-version>
-        <wildfly-version>8.0.0.Beta1</wildfly-version>
-        <xalan.version>2.7.1</xalan.version>
-        <xbean-version>3.15</xbean-version>
-        <xerces.version>2.11.0</xerces.version>
-        <xjc-version>2.1.10.1</xjc-version>
-        <xml.api.version>2.11.0-20110622</xml.api.version>
-        <zookeeper-version>3.4.5</zookeeper-version>
-
-        <activemqcpp.version>3.8.2</activemqcpp.version>
-        <activemqnms.version>1.6.2</activemqnms.version>
-        <qpid-jms-version>0.26</qpid-jms-version>
-
         <felix.obr.version>1.6.6</felix.obr.version>
-
         <felix.prefs.version>1.0.4</felix.prefs.version>
-
-        <!-- CXF -->
-        <cxf.xjc-utils.version>2.3.2</cxf.xjc-utils.version>
-
-        <!-- Geronimo -->
         <geronimo-annotation.version>1.1.1</geronimo-annotation.version>
         <geronimo-connector.version>3.1.1</geronimo-connector.version>
+        <geronimo-ejb_3.1_spec-version>1.0.2</geronimo-ejb_3.1_spec-version>
         <geronimo-j2ee-connector.version>2.0.0</geronimo-j2ee-connector.version>
         <geronimo-j2ee-management.version>1.0.1</geronimo-j2ee-management.version>
         <geronimo-jaxws.version>1.0</geronimo-jaxws.version>
@@ -294,96 +201,141 @@
         <geronimo-saaj.version>1.0.0</geronimo-saaj.version>
         <geronimo-servlet.version>1.2</geronimo-servlet.version>
         <geronimo-ws-metadata.version>1.1.3</geronimo-ws-metadata.version>
-
-        <!-- ServiceMix Bundles -->
-        <abdera.bundle.version>0.4.0-incubating_4</abdera.bundle.version>
-        <antlr2.bundle.version>2.7.7_5</antlr2.bundle.version>
-        <antlr.bundle.version>3.4_1</antlr.bundle.version>
-        <asm.bundle.version>3.3_1</asm.bundle.version>
-        <asm2.bundle.version>2.2.3_4</asm2.bundle.version>
-        <bcel.bundle.version>5.2_3</bcel.bundle.version>
-        <commons-beanutils.bundle.version>1.8.2_1</commons-beanutils.bundle.version>
-        <commons-collections.bundle.version>3.2.1_1</commons-collections.bundle.version>
-        <commons-httpclient.bundle.version>3.1_7</commons-httpclient.bundle.version>
-        <commons-net.bundle.version>3.3</commons-net.bundle.version>
-        <commons-pool.bundle.version>1.5.4_2</commons-pool.bundle.version>
-        <commons-vfs.bundle.version>1.0_5</commons-vfs.bundle.version>
-        <dom4j.bundle.version>1.6.1_5</dom4j.bundle.version>
-        <fastinfoset.bundle.version>1.2.7_3</fastinfoset.bundle.version>
-        <jaxb.api.version>2.2</jaxb.api.version>
-        <jaxb-impl.bundle.version>2.2.1.1_2</jaxb-impl.bundle.version>
-        <jaxp-ri.bundle.version>1.4.4_2</jaxp-ri.bundle.version>
-        <jdt-core.bundle.version>3.2.3_4</jdt-core.bundle.version>
-        <jdom.bundle.version>1.1_4</jdom.bundle.version>
-        <jetty6.bundle.version>6.1.26_3</jetty6.bundle.version>
-        <jruby.version>1.7.6-redhat.002</jruby.version>
-        <josql.bundle.version>1.5_4</josql.bundle.version>
-        <jsmpp.bundle.version>2.1.0_4</jsmpp.bundle.version>
-        <opensaml.bundle.version>2.6.1_1</opensaml.bundle.version>
-        <oscore.bundle.version>2.2.4_4</oscore.bundle.version>
-        <osworkflow.bundle.version>2.7.0_4</osworkflow.bundle.version>
-        <oro.bundle.version>2.0.8_6</oro.bundle.version>
-        <protobuf.bundle.version>2.4.1_1</protobuf.bundle.version>
-        <propertyset.bundle.version>1.3_4</propertyset.bundle.version>
-        <quartz.bundle.version>1.8.6_1</quartz.bundle.version>
-        <rhino.bundle.version>1.7R2_3</rhino.bundle.version>
-        <saaj-impl.bundle.version>1.3.21_1</saaj-impl.bundle.version>
-        <saxon.bundle.version>9.5.1-1_1</saxon.bundle.version>
-        <snmp4j.bundle.version>2.2.2_1</snmp4j.bundle.version>
+        <geronimo-atinject.version>1.0</geronimo-atinject.version>
+        <gitective-version>0.9.9</gitective-version>
+        <gravia-version>1.1.0.Beta36</gravia-version>
+        <groovy-version>2.3.3</groovy-version>
+        <guava-version>15.0</guava-version>
+        <guava.osgi.version.clean>15.0</guava.osgi.version.clean>
+        <hadoop-version>1.2.1</hadoop-version>
+        <hawtbuf-version>1.10</hawtbuf-version>
+        <hawtdispatch-version>1.21</hawtdispatch-version>
+        <hawtio-dockerui-version>1.0.3</hawtio-dockerui-version>
+        <hawtio-swagger-version>1.0.2</hawtio-swagger-version>
+        <hawtio-version>1.4.10</hawtio-version>
+        <jackson-version>1.9.2</jackson-version>
+        <jackson2-version>2.3.3</jackson2-version>
+        <jackson-module-scala-version>2.1.5_2</jackson-module-scala-version>
+        <jansi-version>1.11</jansi-version>
+        <jasypt-smx-version>1.9.1_2</jasypt-smx-version>
+        <jasypt-spring-smx-version>1.9.1_1</jasypt-spring-smx-version>
+        <jasypt-version>1.9.1</jasypt-version>
+        <jaxb-api-version>2.1</jaxb-api-version>
+        <jaxb-version>2.2.7</jaxb-version>
+        <jboss-javaee-6-version>1.0.0.Final</jboss-javaee-6-version>
+        <!-- TODO is this always the same as drools-version? -->
+        <jbpm-version>6.1.0.CR1</jbpm-version>
+        <jclouds-karaf-version>1.7.2</jclouds-karaf-version>
+        <jclouds-version>1.7.2</jclouds-version>
+        <jclouds.osgi.version.clean>${jclouds-version}</jclouds.osgi.version.clean>
+        <jersey-version>1.18.1</jersey-version>
+        <jettison.version>1.3.5</jettison.version>
+        <jetty-plugin-groupId>org.mortbay.jetty</jetty-plugin-groupId>
+        <jetty-plugin-version>8.1.14.v20131031</jetty-plugin-version>
+        <jetty-version>8.1.14.v20131031</jetty-version>
+        <jetty9-version>9.1.5.v20140505</jetty9-version>
+        <jetty6-version>6.1.26_4</jetty6-version>
+        <jgit-version>3.3.2.201404171909-r</jgit-version>
+        <jledit.version>0.2.1</jledit.version>
+        <jmdns-version>3.4.1</jmdns-version>
+        <jms-1.1-version>1.1.1</jms-1.1-version>
+        <jna-bundle-version>1.1</jna-bundle-version>
+        <jna-version>3.3.0</jna-version>
+        <jolokia-version>1.2.2</jolokia-version>
+        <jsch-smx-version>0.1.49_1</jsch-smx-version>
+        <json4s-version>3.2.4_1</json4s-version>
+        <junit-version>4.11</junit-version>
+        <karaf-version>2.3.0.redhat-${full-perfectus-build}</karaf-version>
+        <libvirt-bundle-version>1.1</libvirt-bundle-version>
+        <libvirt-version>0.4.7</libvirt-version>
+        <log4j-version>1.2.17</log4j-version>
+        <logback-version>1.1.2</logback-version>
+        <maven-fab-plugin-version>1.32</maven-fab-plugin-version>
+        <maven-version>3.0.4</maven-version>
+        <maven-dependency-plugin-version>2.8</maven-dependency-plugin-version>
+        <mina-version>2.0.7</mina-version>
+        <mongo-java-driver-version>2.12.0</mongo-java-driver-version>
+        <mvel-version>2.1.9.Final</mvel-version>
+        <netty.version>4.0.19.Final</netty.version>
+        <openshift.client.groupId>com.openshift</openshift.client.groupId>
+        <openshift.client.version>2.5.0.Final</openshift.client.version>
+        <ops4j-base.version>1.4.0</ops4j-base.version>
+        <ops4j-pax-exam-version>3.4.0</ops4j-pax-exam-version>
+        <ops4j-pax-swissbox-bnd.version>1.6.0</ops4j-pax-swissbox-bnd.version>
+        <ops4j-pax-swissbox-optional-jcl.version>1.6.0</ops4j-pax-swissbox-optional-jcl.version>
+        <ops4j-pax-swissbox-property.version>1.6.0</ops4j-pax-swissbox-property.version>
+        <ops4j-pax-web-version>3.0.5</ops4j-pax-web-version>
+        <org.apache.servicemix.bundles.jzlib.version>1.1.3_2</org.apache.servicemix.bundles.jzlib.version>
+        <org.apache.servicemix.bundles.dnsjava.version>2.1.1_1</org.apache.servicemix.bundles.dnsjava.version>
+        <osgi-compendium-version>4.3.1</osgi-compendium-version>
+        <osgi-enterprise-version>5.0.0</osgi-enterprise-version>
+        <osgi-metadata-version>4.0.0.CR1</osgi-metadata-version>
+        <osgi-version>5.0.0</osgi-version>
+        <pax-runner-version>1.7.6</pax-runner-version>
+        <pax.logging.version>1.7.2</pax.logging.version>
+        <pax.url.mvn.commons.version>${pax.url.version}</pax.url.mvn.commons.version>
+        <pax.url.mvn.version>${pax.url.version}</pax.url.mvn.version>
+        <pax.url.version>1.3.7</pax.url.version>
+        <qpid-jms-version>0.26</qpid-jms-version>
+        <reflections-version>0.9.8_1</reflections-version>
+        <rhq-metrics-version>0.2.0.20140626-M2</rhq-metrics-version>
+        <rrd4j-version>2.0.7</rrd4j-version>
+        <scala-version>2.11.0</scala-version>
+        <scalamd-version>1.5</scalamd-version>
+        <scalate-version>1.6.1</scalate-version>
+        <scalatest-version>1.6.1</scalatest-version>
+        <serp.bundle.version>1.14.1_1</serp.bundle.version>
+        <servicemix-components-version>2013.01</servicemix-components-version>
+        <servicemix-features-version>4.5.3</servicemix-features-version>
+        <servicemix-nmr-version>1.6.1</servicemix-nmr-version>
+        <servicemix-specs-version>2.4.0</servicemix-specs-version>
+        <servicemix-utils-version>1.6.0</servicemix-utils-version>
+        <servlet-api-version>2.5</servlet-api-version>
+        <servlet30-api-version>3.0.1</servlet30-api-version>
+        <shrinkwrap-resolver-version>2.0.0</shrinkwrap-resolver-version>
+        <shrinkwrap-version>1.1.2</shrinkwrap-version>
+        <slf4j-api-version>1.7.5</slf4j-api-version>
+        <slf4j-version>1.7.5</slf4j-version>
+        <spring-bundle-version>3.2.9.RELEASE_1</spring-bundle-version>
+        <spring-data-rest-version>2.0.2.RELEASE</spring-data-rest-version>
+        <spring-osgi-version>1.2.1</spring-osgi-version>
+        <spring-version>3.2.9.RELEASE</spring-version>
+        <sshd-version>0.9.0</sshd-version>
+        <sshj.version>0.8.1</sshj.version>
+        <swagger-version>1.3.2_1</swagger-version>
+        <swagger-scala-version>2.10.2</swagger-scala-version>
+        <tinybundles-version>1.0.0</tinybundles-version>
+        <tomcat-version>7.0.54</tomcat-version>
+        <tomee-version>1.6.0.2</tomee-version>
         <validation-api-version>1.1.0.Final</validation-api-version>
-        <velocity.bundle.version>1.7_3</velocity.bundle.version>
-        <wsdl4j.bundle.version>1.6.3_1</wsdl4j.bundle.version>
-        <xalan.bundle.version>2.7.1_7</xalan.bundle.version>
-        <xerces.bundle.version>2.9.1_4</xerces.bundle.version>
-        <xmlbeans.bundle.version>2.5.0_2</xmlbeans.bundle.version>
-        <xmlresolver.bundle.version>1.2_5</xmlresolver.bundle.version>
-        <xmlsec.bundle.version>1.5.6</xmlsec.bundle.version>
-
-        <!-- ServiceMix legal shared resources -->
-        <servicemix.legal.version>1.0</servicemix.legal.version>
-
-        <!-- ODE -->
-        <ode.version>1.3.5</ode.version>
-
-        <!-- Other Dependencies -->
-        <axiom.version>1.2.12</axiom.version>
-        <bouncycastle.version>1.49</bouncycastle.version>
-        <commons-jexl.version>2.1.1</commons-jexl.version>
-        <commons-logging.version>1.1.1</commons-logging.version>
-        <groovy.version>2.1.9</groovy.version>
-        <javax.mail.version>1.4.7</javax.mail.version>
-        <jaxp-ri.version>1.4.4</jaxp-ri.version>
-        <xerces.version>2.11.0</xerces.version>
-        <xml.api.version>2.11.0-20110622</xml.api.version>
+        <vertx-version>2.1RC1</vertx-version>
+        <wagon-version>2.6</wagon-version>
+        <wagon-webdav-plugin-version>1.0-beta-7</wagon-webdav-plugin-version>
+        <weld-version>1.1.18.Final</weld-version>
+        <weld2-version>2.1.2.Final</weld2-version>
+        <wildfly-version>8.0.0.Beta1</wildfly-version>
         <xalan.version>2.7.1</xalan.version>
-        <jaxws-api.version>2.2</jaxws-api.version>
-        <lingo.version>1.3</lingo.version>
-        <scriptengines.version>1.1</scriptengines.version>
-        <spring.osgi.version>1.2.1</spring.osgi.version>
-        <wss4j.version>1.6.13</wss4j.version>
-        <neethi.version>3.0.0</neethi.version>
-        <xfire.version>1.0.1</xfire.version>
-        <xbean.version>3.12</xbean.version>
-
-        <!--below bundles is used for jpa-hibernate feature-->
-        <commons-dbcp-bundle-version>1.4_3</commons-dbcp-bundle-version>
-        <hsqldb.version>1.8.0.10</hsqldb.version>
-        <asm.springsource.version>1.5.3</asm.springsource.version>
-        <cglib.springsource.version>2.2.0</cglib.springsource.version>
-        <javassist.springsource.version>3.9.0.GA</javassist.springsource.version>
-        <hibernate.annotations.common.springsource.version>3.3.0.ga</hibernate.annotations.common.springsource.version>
-        <hibernate.annotations.springsource.version>3.4.0.GA</hibernate.annotations.springsource.version>
-        <hibernate.ejb.springsource.version>3.4.0.GA</hibernate.ejb.springsource.version>
-        <hibernate.springsource.version>3.3.2.GA</hibernate.springsource.version>
-        <xmlschema.version>2.0.3</xmlschema.version>
+        <xbean-version>3.16</xbean-version>
+        <xbean-reflect-version>3.4</xbean-reflect-version>
+        <xerces.version>2.11.0</xerces.version>
+        <xjc-version>2.1.10.1</xjc-version>
+        <xml.api.version>2.11.0-20110622</xml.api.version>
+        <zookeeper-version>3.4.6</zookeeper-version>
     </properties>
 
     <distributionManagement>
-        <site>
-            <id>website.fusesource.org</id>
-            <name>website</name>
-            <url>dav:http://fusesource.com/forge/dav/fabric/maven/${project.version}</url>
-        </site>
+      <repository>
+          <id>jboss-releases-repository</id>
+          <name>JBoss Releases Repository</name>
+          <url>https://repository.jboss.org/nexus/service/local/staging/deploy/maven2</url>
+      </repository>
+<!--
+      <snapshotRepository>
+          <id>jboss-snapshots-repository</id>
+          <name>JBoss Snapshots Repository</name>
+          <url>https://repository.jboss.org/nexus/content/repositories/snapshots</url>
+      </snapshotRepository>
+-->
     </distributionManagement>
 
     <repositories>
@@ -394,6 +346,18 @@
             <snapshots>
                 <enabled>false</enabled>
             </snapshots>
+        </repository>
+        <!-- Note: m2-snapshot is needed during CI builds -->
+        <repository>
+            <id>fusesource.m2-snapshot</id>
+            <name>FuseSource Community Snapshot Repository</name>
+            <url>https://repo.fusesource.com/nexus/content/groups/public-snapshots</url>
+            <snapshots>
+                <enabled>true</enabled>
+            </snapshots>
+            <releases>
+                <enabled>false</enabled>
+            </releases>
         </repository>
         <!-- Note: repo.fusesource.com is the correct repo for JBoss Fuse and it is not a mistake -->
         <repository>
@@ -422,6 +386,19 @@
             </snapshots>
         </repository>
         <repository>
+            <id>jboss.fs.public</id>
+            <name>JBoss FS Public Repository Group</name>
+            <url>http://repository.jboss.org/nexus/content/repositories/fs-public/</url>
+            <layout>default</layout>
+            <releases>
+                <enabled>true</enabled>
+                <updatePolicy>never</updatePolicy>
+            </releases>
+            <snapshots>
+                <enabled>false</enabled>
+            </snapshots>
+        </repository>
+        <repository>
             <id>jboss-thirdparty-uploads</id>
             <name>JBoss Thirdparty Uploads</name>
             <url>https://repository.jboss.org/nexus/content/repositories/thirdparty-uploads</url>
@@ -434,40 +411,7 @@
                 <enabled>false</enabled>
                 <updatePolicy>never</updatePolicy>
             </snapshots>
-        </repository>
-        <repository>
-            <id>fusesource.m2-snapshot</id>
-            <name>FuseSource Community Snapshot Repository</name>
-            <url>https://repo.fusesource.com/nexus/content/groups/public-snapshots</url>
-            <snapshots>
-                <enabled>true</enabled>
-            </snapshots>
-            <releases>
-                <enabled>false</enabled>
-            </releases>
-        </repository>
-        <!-- needed for springframework -->
-        <repository>
-            <id>com.springsource.repository.bundles.release</id>
-            <name>SpringSource Enterprise Bundle Repository - SpringSource Bundle Releases</name>
-            <url>http://repository.springsource.com/maven/bundles/release</url>
-        </repository>
-        <repository>
-            <id>com.springsource.repository.bundles.external</id>
-            <name>SpringSource Enterprise Bundle Repository - External Bundle Releases</name>
-            <url>http://repository.springsource.com/maven/bundles/external</url>
-        </repository>
-        <repository>
-            <id>ops4j</id>
-            <name>OPS4J Release Repository</name>
-            <url>https://oss.sonatype.org/content/groups/ops4j</url>
-            <snapshots>
-                <enabled>false</enabled>
-            </snapshots>
-            <releases>
-                <enabled>true</enabled>
-            </releases>
-        </repository>
+        </repository> 
         <repository>
             <id>jboss-public-repository-group</id>
             <name>JBoss Public Repository Group</name>
@@ -481,16 +425,6 @@
                 <enabled>true</enabled>
                 <updatePolicy>daily</updatePolicy>
             </snapshots>
-        </repository>
-        <!-- Required to allow building with a snapshot of the NMR (parent 
-            POM) -->
-        <repository>
-            <id>apache.snapshots</id>
-            <name>Apache Snapshot Repository</name>
-            <url>http://repository.apache.org/snapshots</url>
-            <releases>
-                <enabled>false</enabled>
-            </releases>
         </repository>
         <!-- Java.net Maven Repository, required by javax.mail -->
         <repository>
@@ -561,6 +495,19 @@
                 <updatePolicy>never</updatePolicy>
             </releases>
         </pluginRepository>
+        <pluginRepository>
+            <id>jboss.fs.public</id>
+            <name>JBoss FS Public Repository Group</name>
+            <url>http://repository.jboss.org/nexus/content/repositories/fs-public/</url>
+            <layout>default</layout>
+            <releases>
+                <enabled>true</enabled>
+                <updatePolicy>never</updatePolicy>
+            </releases>
+            <snapshots>
+                <enabled>false</enabled>
+            </snapshots>
+        </pluginRepository>
     </pluginRepositories>
 
     <dependencyManagement>
@@ -582,75 +529,80 @@
                 <artifactId>commons-beanutils</artifactId>
                 <version>${commons-beanutils-version}</version>
             </dependency>
+            <dependency>
+                <groupId>commons-io</groupId>
+                <artifactId>commons-io</artifactId>
+                <version>${commons-io2-version}</version>
+            </dependency>
 
             <dependency>
                 <groupId>javax.servlet</groupId>
                 <artifactId>servlet-api</artifactId>
                 <version>${servlet-api-version}</version>
             </dependency>
+            <dependency>
+                <groupId>javax.servlet</groupId>
+                <artifactId>javax.servlet-api</artifactId>
+                <version>${servlet30-api-version}</version>
+            </dependency>
 
             <!-- Eclipse -->
             <dependency>
                 <groupId>org.eclipse.jgit</groupId>
                 <artifactId>org.eclipse.jgit</artifactId>
-                <version>${jgit.version}</version>
+                <version>${jgit-version}</version>
             </dependency>
             <dependency>
                 <groupId>org.eclipse.jgit</groupId>
                 <artifactId>org.eclipse.jgit.http.server</artifactId>
-                <version>${jgit.version}</version>
+                <version>${jgit-version}</version>
             </dependency>
 
             <!-- Fabric -->
             <dependency>
                 <groupId>io.fabric8</groupId>
                 <artifactId>fabric-utils</artifactId>
-                <version>${fabric.version}</version>
+                <version>${project.version}</version>
             </dependency>
             <dependency>
                 <groupId>io.fabric8</groupId>
                 <artifactId>fabric8-maven-plugin</artifactId>
-                <version>${fabric.version}</version>
+                <version>${project.version}</version>
             </dependency>
             <dependency>
                 <groupId>io.fabric8</groupId>
                 <artifactId>fabric-zookeeper-spring</artifactId>
-                <version>${fabric.version}</version>
+                <version>${project.version}</version>
             </dependency>
-            <dependency>
-                <groupId>io.fabric8.itests</groupId>
-                <artifactId>fabric-itests-common</artifactId>
-                <version>${fabric.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>org.fusesource.tooling.testing</groupId>
+            <dependency>             
+                <groupId>io.fabric8.tooling.testing</groupId>
                 <artifactId>pax-exam-karaf</artifactId>
-                <version>${fabric.version}</version>
+                <version>${project.version}</version>
             </dependency>
             <dependency>
-                <groupId>org.fusesource.insight</groupId>
+                <groupId>io.fabric8.insight</groupId>
                 <artifactId>insight-graph</artifactId>
-                <version>${fabric.version}</version>
+                <version>${project.version}</version>
             </dependency>
             <dependency>
-                <groupId>org.fusesource.insight</groupId>
+                <groupId>io.fabric8.insight</groupId>
                 <artifactId>insight-log-core</artifactId>
-                <version>${fabric.version}</version>
+                <version>${project.version}</version>
             </dependency>
             <dependency>
-                <groupId>org.fusesource.insight</groupId>
-                <artifactId>insight-storage</artifactId>
-                <version>${fabric.version}</version>
+                <groupId>io.fabric8.insight</groupId>
+                <artifactId>insight-rhq-metrics</artifactId>
+                <version>${project.version}</version>
             </dependency>
             <dependency>
                 <groupId>io.fabric8.virt</groupId>
                 <artifactId>io.fabric8.virt.commands</artifactId>
-                <version>${fabric.version}</version>
+                <version>${project.version}</version>
             </dependency>
             <dependency>
                 <groupId>io.fabric8.virt</groupId>
                 <artifactId>io.fabric8.virt.services</artifactId>
-                <version>${fabric.version}</version>
+                <version>${project.version}</version>
             </dependency>
             <dependency>
                 <groupId>io.fabric8.virt.bundles</groupId>
@@ -665,12 +617,12 @@
             <dependency>
                 <groupId>io.fabric8</groupId>
                 <artifactId>io.fabric8.karaf.branding</artifactId>
-                <version>${fabric.version}</version>
+                <version>${project.version}</version>
             </dependency>
             <dependency>
                 <groupId>io.fabric8</groupId>
                 <artifactId>watcher-core</artifactId>
-                <version>${fabric.version}</version>
+                <version>${project.version}</version>
             </dependency>
             <dependency>
                 <groupId>org.fusesource.jansi</groupId>
@@ -678,336 +630,377 @@
                 <version>${jansi-version}</version>
             </dependency>
             <dependency>
-                <groupId>org.fusesource.patch</groupId>
+                <groupId>io.fabric8.patch</groupId>
                 <artifactId>patch-management</artifactId>
-                <version>${fabric.version}</version>
+                <version>${project.version}</version>
             </dependency>
             <dependency>
-                <groupId>org.jboss.amq</groupId>
+                <groupId>io.fabric8.mq</groupId>
                 <artifactId>mq-client</artifactId>
-                <version>${fuse.version}</version>
+                <version>${project.version}</version>
             </dependency>
             <dependency>
                 <groupId>io.fabric8</groupId>
                 <artifactId>fabric-core-agent-ssh</artifactId>
-                <version>${fabric.version}</version>
+                <version>${project.version}</version>
             </dependency>
             <dependency>
                 <groupId>io.fabric8</groupId>
                 <artifactId>fabric-redirect</artifactId>
-                <version>${fabric.version}</version>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.fabric8</groupId>
+                <artifactId>fabric-rest</artifactId>
+                <version>${project.version}</version>
             </dependency>
             <dependency>
                 <groupId>io.fabric8</groupId>
                 <artifactId>gateway-fabric-haproxy</artifactId>
-                <version>${fabric.version}</version>
+                <version>${project.version}</version>
             </dependency>
             <dependency>
                 <groupId>io.fabric8</groupId>
                 <artifactId>fabric-camel-autotest</artifactId>
-                <version>${fabric.version}</version>
+                <version>${project.version}</version>
             </dependency>
             <dependency>
                 <groupId>io.fabric8</groupId>
                 <artifactId>fabric-configadmin</artifactId>
-                <version>${fabric.version}</version>
+                <version>${project.version}</version>
             </dependency>
             <dependency>
                 <groupId>io.fabric8</groupId>
                 <artifactId>fabric-ldap</artifactId>
-                <version>${fabric.version}</version>
+                <version>${project.version}</version>
             </dependency>
             <dependency>
                 <groupId>io.fabric8</groupId>
                 <artifactId>fabric-openshift</artifactId>
-                <version>${fabric.version}</version>
+                <version>${project.version}</version>
             </dependency>
             <dependency>
                 <groupId>io.fabric8</groupId>
                 <artifactId>fabric-zookeeper</artifactId>
-                <version>${fabric.version}</version>
+                <version>${project.version}</version>
             </dependency>
             <dependency>
                 <groupId>io.fabric8</groupId>
                 <artifactId>fabric-groups</artifactId>
-                <version>${fabric.version}</version>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.fabric8</groupId>
+                <artifactId>fabric-groovy</artifactId>
+                <version>${project.version}</version>
             </dependency>
             <dependency>
                 <groupId>io.fabric8</groupId>
                 <artifactId>common-util</artifactId>
-                <version>${fabric.version}</version>
+                <version>${project.version}</version>
             </dependency>
             <dependency>
                 <groupId>io.fabric8</groupId>
                 <artifactId>fabric-commands</artifactId>
-                <version>${fabric.version}</version>
+                <version>${project.version}</version>
             </dependency>
             <dependency>
                 <groupId>io.fabric8</groupId>
                 <artifactId>fabric-autoscale</artifactId>
-                <version>${fabric.version}</version>
+                <version>${project.version}</version>
             </dependency>
             <dependency>
                 <groupId>io.fabric8</groupId>
                 <artifactId>fabric-zookeeper-commands</artifactId>
-                <version>${fabric.version}</version>
+                <version>${project.version}</version>
             </dependency>
             <dependency>
                 <groupId>io.fabric8</groupId>
                 <artifactId>fabric-jolokia</artifactId>
-                <version>${fabric.version}</version>
+                <version>${project.version}</version>
             </dependency>
             <dependency>
                 <groupId>io.fabric8</groupId>
                 <artifactId>fabric-features-service</artifactId>
-                <version>${fabric.version}</version>
+                <version>${project.version}</version>
             </dependency>
             <dependency>
                 <groupId>io.fabric8</groupId>
                 <artifactId>dynamic-jaxb</artifactId>
-                <version>${fabric.version}</version>
+                <version>${project.version}</version>
             </dependency>
             <dependency>
                 <groupId>io.fabric8</groupId>
                 <artifactId>fabric-hadoop</artifactId>
-                <version>${fabric.version}</version>
+                <version>${project.version}</version>
             </dependency>
             <dependency>
                 <groupId>io.fabric8</groupId>
                 <artifactId>fabric-dosgi</artifactId>
-                <version>${fabric.version}</version>
+                <version>${project.version}</version>
             </dependency>
             <dependency>
                 <groupId>io.fabric8</groupId>
                 <artifactId>fabric-cxf-registry</artifactId>
-                <version>${fabric.version}</version>
+                <version>${project.version}</version>
             </dependency>
             <dependency>
                 <groupId>io.fabric8</groupId>
                 <artifactId>gateway-fabric-support</artifactId>
-                <version>${fabric.version}</version>
+                <version>${project.version}</version>
             </dependency>
             <dependency>
                 <groupId>io.fabric8</groupId>
                 <artifactId>fabric-api</artifactId>
-                <version>${fabric.version}</version>
+                <version>${project.version}</version>
             </dependency>
             <dependency>
                 <groupId>io.fabric8</groupId>
                 <artifactId>fabric-git-server</artifactId>
-                <version>${fabric.version}</version>
+                <version>${project.version}</version>
             </dependency>
             <dependency>
                 <groupId>io.fabric8</groupId>
                 <artifactId>fabric-boot-commands</artifactId>
-                <version>${fabric.version}</version>
+                <version>${project.version}</version>
             </dependency>
             <dependency>
                 <groupId>io.fabric8</groupId>
                 <artifactId>fabric-extender-listener</artifactId>
-                <version>${fabric.version}</version>
+                <version>${project.version}</version>
             </dependency>
             <dependency>
                 <groupId>io.fabric8</groupId>
                 <artifactId>gateway-core</artifactId>
-                <version>${fabric.version}</version>
+                <version>${project.version}</version>
             </dependency>
             <dependency>
                 <groupId>io.fabric8</groupId>
                 <artifactId>fabric-jaas</artifactId>
-                <version>${fabric.version}</version>
+                <version>${project.version}</version>
             </dependency>
             <dependency>
                 <groupId>io.fabric8</groupId>
                 <artifactId>fabric-git</artifactId>
-                <version>${fabric.version}</version>
+                <version>${project.version}</version>
             </dependency>
             <dependency>
                 <groupId>io.fabric8</groupId>
                 <artifactId>fabric-cxf</artifactId>
-                <version>${fabric.version}</version>
+                <version>${project.version}</version>
             </dependency>
             <dependency>
                 <groupId>io.fabric8</groupId>
                 <artifactId>process-fabric</artifactId>
-                <version>${fabric.version}</version>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.fabric8</groupId>
+                <artifactId>process-spring-boot-container</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.fabric8</groupId>
+                <artifactId>process-spring-boot-starter-activemq</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.fabric8</groupId>
+                <artifactId>process-spring-boot-starter-camel</artifactId>
+                <version>${project.version}</version>
             </dependency>
             <dependency>
                 <groupId>io.fabric8</groupId>
                 <artifactId>fabric-docker-provider</artifactId>
-                <version>${fabric.version}</version>
+                <version>${project.version}</version>
             </dependency>
             <dependency>
                 <groupId>io.fabric8.fab</groupId>
                 <artifactId>fab-osgi</artifactId>
-                <version>${fabric.version}</version>
+                <version>${project.version}</version>
             </dependency>
             <dependency>
                 <groupId>io.fabric8</groupId>
                 <artifactId>fabric-camel</artifactId>
-                <version>${fabric.version}</version>
+                <version>${project.version}</version>
             </dependency>
             <dependency>
                 <groupId>io.fabric8</groupId>
                 <artifactId>fabric-web</artifactId>
-                <version>${fabric.version}</version>
+                <version>${project.version}</version>
             </dependency>
             <dependency>
                 <groupId>io.fabric8</groupId>
                 <artifactId>fabric-agent</artifactId>
-                <version>${fabric.version}</version>
+                <version>${project.version}</version>
             </dependency>
             <dependency>
                 <groupId>io.fabric8</groupId>
                 <artifactId>fabric-docker-api</artifactId>
-                <version>${fabric.version}</version>
+                <version>${project.version}</version>
             </dependency>
             <dependency>
                 <groupId>io.fabric8</groupId>
                 <artifactId>fabric-partition</artifactId>
-                <version>${fabric.version}</version>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.fabric8</groupId>
+                <artifactId>fabric-process-container</artifactId>
+                <version>${project.version}</version>
             </dependency>
             <dependency>
                 <groupId>io.fabric8</groupId>
                 <artifactId>fabric-project-deployer</artifactId>
-                <version>${fabric.version}</version>
+                <version>${project.version}</version>
             </dependency>
             <dependency>
                 <groupId>io.fabric8</groupId>
                 <artifactId>fabric-git-hawtio</artifactId>
-                <version>${fabric.version}</version>
+                <version>${project.version}</version>
             </dependency>
             <dependency>
                 <groupId>io.fabric8</groupId>
                 <artifactId>fabric-agent-commands</artifactId>
-                <version>${fabric.version}</version>
+                <version>${project.version}</version>
             </dependency>
             <dependency>
                 <groupId>io.fabric8</groupId>
                 <artifactId>process-manager</artifactId>
-                <version>${fabric.version}</version>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.fabric8</groupId>
+                <artifactId>process-test</artifactId>
+                <version>${project.version}</version>
             </dependency>
             <dependency>
                 <groupId>io.fabric8</groupId>
                 <artifactId>fabric-core</artifactId>
-                <version>${fabric.version}</version>
+                <version>${project.version}</version>
             </dependency>
             <dependency>
                 <groupId>io.fabric8</groupId>
                 <artifactId>fabric-zeroconf</artifactId>
-                <version>${fabric.version}</version>
+                <version>${project.version}</version>
             </dependency>
             <dependency>
                 <groupId>io.fabric8</groupId>
                 <artifactId>fabric-core-agent-jclouds</artifactId>
-                <version>${fabric.version}</version>
+                <version>${project.version}</version>
             </dependency>
             <dependency>
                 <groupId>io.fabric8</groupId>
                 <artifactId>fabric-maven-proxy</artifactId>
-                <version>${fabric.version}</version>
+                <version>${project.version}</version>
             </dependency>
             <dependency>
                 <groupId>io.fabric8</groupId>
                 <artifactId>gateway-fabric</artifactId>
-                <version>${fabric.version}</version>
+                <version>${project.version}</version>
             </dependency>
             <dependency>
                 <groupId>io.fabric8</groupId>
                 <artifactId>fabric-dynamic-jaxb</artifactId>
-                <version>${fabric.version}</version>
+                <version>${project.version}</version>
             </dependency>
             <dependency>
-                <groupId>org.jboss.amq</groupId>
+                <groupId>io.fabric8.mq</groupId>
                 <artifactId>mq-fabric</artifactId>
-                <version>${fuse.version}</version>
+                <version>${project.version}</version>
             </dependency>
             <dependency>
-                <groupId>org.jboss.amq</groupId>
-                <artifactId>mq-fabric-camel</artifactId>
-                <version>${fuse.version}</version>
+                <groupId>io.fabric8.mq</groupId>
+                <artifactId>camel-amq</artifactId>
+                <version>${project.version}</version>
             </dependency>
             <dependency>
-                <groupId>org.jboss.amq</groupId>
+                <groupId>io.fabric8.mq</groupId>
                 <artifactId>mq-http-discovery</artifactId>
-                <version>${fuse.version}</version>
+                <version>${project.version}</version>
             </dependency>
             <dependency>
-                <groupId>org.jboss.fuse</groupId>
-                <artifactId>esb-commands</artifactId>
-                <version>${fuse.version}</version>
+                <groupId>io.fabric8.insight</groupId>
+                <artifactId>insight-metrics-model</artifactId>
+                <version>${project.version}</version>
             </dependency>
             <dependency>
-                <groupId>org.fusesource.bai</groupId>
-                <artifactId>bai-core</artifactId>
-                <version>${fabric.version}</version>
+                <groupId>io.fabric8.insight</groupId>
+                <artifactId>insight-metrics-mvel</artifactId>
+                <version>${project.version}</version>
             </dependency>
             <dependency>
-                <groupId>org.fusesource.bai</groupId>
-                <artifactId>bai-agent</artifactId>
-                <version>${fabric.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>org.fusesource.bai</groupId>
-                <artifactId>bai-mongodb-backend</artifactId>
-                <version>${fabric.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>org.fusesource.insight</groupId>
+                <groupId>io.fabric8.insight</groupId>
                 <artifactId>insight-metrics</artifactId>
-                <version>${fabric.version}</version>
+                <version>${project.version}</version>
             </dependency>
             <dependency>
-                <groupId>org.fusesource.insight</groupId>
+                <groupId>io.fabric8.insight</groupId>
                 <artifactId>insight-log</artifactId>
-                <version>${fabric.version}</version>
+                <version>${project.version}</version>
             </dependency>
             <dependency>
-                <groupId>org.fusesource.insight</groupId>
+                <groupId>io.fabric8.insight</groupId>
                 <artifactId>insight-kibana3</artifactId>
-                <version>${fabric.version}</version>
+                <version>${project.version}</version>
             </dependency>
             <dependency>
-                <groupId>org.fusesource.insight</groupId>
+                <groupId>io.fabric8.insight</groupId>
                 <artifactId>insight-log-storage</artifactId>
-                <version>${fabric.version}</version>
+                <version>${project.version}</version>
             </dependency>
             <dependency>
-                <groupId>org.fusesource.insight</groupId>
+                <groupId>io.fabric8.insight</groupId>
                 <artifactId>insight-storage</artifactId>
-                <version>${fabric.version}</version>
+                <version>${project.version}</version>
             </dependency>
             <dependency>
-                <groupId>org.fusesource.insight</groupId>
+                <groupId>io.fabric8.insight</groupId>
                 <artifactId>insight-eshead</artifactId>
-                <version>${fabric.version}</version>
+                <version>${project.version}</version>
             </dependency>
             <dependency>
-                <groupId>org.fusesource.insight</groupId>
+                <groupId>io.fabric8.insight</groupId>
                 <artifactId>insight-camel</artifactId>
-                <version>${fabric.version}</version>
+                <version>${project.version}</version>
             </dependency>
             <dependency>
-                <groupId>org.fusesource.insight</groupId>
+                <groupId>io.fabric8.insight</groupId>
                 <artifactId>insight-elasticsearch</artifactId>
-                <version>${fabric.version}</version>
+                <version>${project.version}</version>
             </dependency>
             <dependency>
-                <groupId>org.fusesource.patch</groupId>
+                <groupId>io.fabric8.patch</groupId>
                 <artifactId>patch-core</artifactId>
-                <version>${fabric.version}</version>
+                <version>${project.version}</version>
             </dependency>
             <dependency>
-                <groupId>org.fusesource.patch</groupId>
+                <groupId>io.fabric8.patch</groupId>
                 <artifactId>patch-commands</artifactId>
-                <version>${fabric.version}</version>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.fabric8</groupId>
+                <artifactId>archetype-builder</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.fabric8</groupId>
+                <artifactId>archetype-commands</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+
+            <dependency>
+                <groupId>io.fabric8.runtime</groupId>
+                <artifactId>fabric-runtime-container-karaf-registration</artifactId>
+                <version>${project.version}</version>
             </dependency>
 
             <!-- Utils -->
             <dependency>
-                <groupId>org.fusesource</groupId>
+                <groupId>io.fabric8</groupId>
                 <artifactId>maven-util</artifactId>
-                <version>${fabric.version}</version>
+                <version>${project.version}</version>
             </dependency>
 
             <!-- OSGi -->
@@ -1028,6 +1021,11 @@
             </dependency>
 
             <!-- Camel -->
+            <dependency>
+                <groupId>org.apache.camel</groupId>
+                <artifactId>camel-cdi</artifactId>
+                <version>${camel-version}</version>
+            </dependency>
             <dependency>
                 <groupId>org.apache.camel</groupId>
                 <artifactId>camel-saxon</artifactId>
@@ -1081,6 +1079,11 @@
             <dependency>
                 <groupId>org.apache.camel</groupId>
                 <artifactId>camel-test</artifactId>
+                <version>${camel-version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.apache.camel</groupId>
+                <artifactId>camel-testng</artifactId>
                 <version>${camel-version}</version>
             </dependency>
             <dependency>
@@ -2028,11 +2031,6 @@
             </dependency>
             <dependency>
                 <groupId>org.apache.karaf.admin</groupId>
-                <artifactId>org.apache.karaf.admin.management</artifactId>
-                <version>${karaf-version}</version>
-            </dependency>
-            <dependency>
-                <groupId>org.apache.karaf.admin</groupId>
                 <artifactId>org.apache.karaf.admin.core</artifactId>
                 <version>${karaf-version}</version>
             </dependency>
@@ -2094,18 +2092,6 @@
                 <version>${jledit.version}</version>
             </dependency>
 
-            <!-- OSGi Scala distro -->
-            <dependency>
-                <groupId>com.weiglewilczek.scala-lang-osgi</groupId>
-                <artifactId>scala-library</artifactId>
-                <version>${scala-osgi-version}</version>
-            </dependency>
-            <dependency>
-                <groupId>org.scala-lang</groupId>
-                <artifactId>scala-library</artifactId>
-                <version>${scala-version}</version>
-            </dependency>
-
             <!-- Others -->
             <dependency>
                 <groupId>org.apache.curator</groupId>
@@ -2146,6 +2132,16 @@
                 <groupId>org.apache.felix</groupId>
                 <artifactId>org.apache.felix.gogo.runtime</artifactId>
                 <version>${felix-gogo-version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.apache.felix</groupId>
+                <artifactId>org.apache.felix.http.bridge</artifactId>
+                <version>${felix-http-version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.apache.felix</groupId>
+                <artifactId>org.apache.felix.http.proxy</artifactId>
+                <version>${felix-http-version}</version>
             </dependency>
             <dependency>
                 <groupId>org.apache.felix</groupId>
@@ -2201,6 +2197,11 @@
                 <version>${ops4j-pax-exam-version}</version>
             </dependency>
             <dependency>
+                <groupId>org.ops4j.pax.exam</groupId>
+                <artifactId>pax-exam-container-karaf</artifactId>
+                <version>${ops4j-pax-exam-version}</version>
+            </dependency>
+            <dependency>
                 <groupId>org.ops4j.pax.web</groupId>
                 <artifactId>pax-web-runtime</artifactId>
                 <version>${ops4j-pax-web-version}</version>
@@ -2224,7 +2225,28 @@
             <!-- Spring -->
             <dependency>
                 <groupId>org.springframework</groupId>
+                <artifactId>spring-core</artifactId>
+                <version>${spring-version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.springframework</groupId>
+                <artifactId>spring-beans</artifactId>
+                <version>${spring-version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.springframework</groupId>
                 <artifactId>spring-context</artifactId>
+                <version>${spring-version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.springframework</groupId>
+                <artifactId>spring-web</artifactId>
+                <version>${spring-version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.springframework</groupId>
+                <artifactId>spring-test</artifactId>
+                <scope>test</scope>
                 <version>${spring-version}</version>
             </dependency>
 
@@ -2246,11 +2268,6 @@
                 <version>${hawtdispatch-version}</version>
             </dependency>
             <dependency>
-                <groupId>org.fusesource.hawtdispatch</groupId>
-                <artifactId>hawtdispatch-scala</artifactId>
-                <version>${hawtdispatch-version}</version>
-            </dependency>
-            <dependency>
                 <groupId>org.fusesource.hawtbuf</groupId>
                 <artifactId>hawtbuf</artifactId>
                 <version>${hawtbuf-version}</version>
@@ -2266,6 +2283,19 @@
                 <artifactId>easymockclassextension</artifactId>
                 <version>2.4</version>
             </dependency>
+            <!-- Mockito -->
+            <dependency>
+                <groupId>org.mockito</groupId>
+                <artifactId>mockito-core</artifactId>
+                <version>1.9.5</version>
+            </dependency>
+            <!-- Awaitility -->
+            <dependency>
+                <groupId>com.jayway.awaitility</groupId>
+                <artifactId>awaitility</artifactId>
+                <version>1.3.5</version>
+            </dependency>
+
             <!-- JSCH -->
             <dependency>
                 <groupId>org.apache.servicemix.bundles</groupId>
@@ -2421,12 +2451,12 @@
             <dependency>
                 <groupId>org.apache.aries.blueprint</groupId>
                 <artifactId>org.apache.aries.blueprint.api</artifactId>
-                <version>${aries-blueprint-version}</version>
+                <version>${aries-blueprint-api-version}</version>
             </dependency>
             <dependency>
                 <groupId>org.apache.aries.blueprint</groupId>
                 <artifactId>org.apache.aries.blueprint.core</artifactId>
-                <version>${aries-blueprint-version}</version>
+                <version>${aries-blueprint-core-version}</version>
             </dependency>
             <dependency>
                 <groupId>org.apache.aries</groupId>
@@ -2518,6 +2548,11 @@
             </dependency>
             <dependency>
                 <groupId>org.apache.activemq</groupId>
+                <artifactId>activemq-jms-pool</artifactId>
+                <version>${activemq-version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.apache.activemq</groupId>
                 <artifactId>activemq-pool</artifactId>
                 <version>${activemq-version}</version>
             </dependency>
@@ -2545,39 +2580,36 @@
             </dependency>
 
             <dependency>
-                <groupId>org.codehaus.jackson</groupId>
-                <artifactId>jackson-core-asl</artifactId>
-                <version>${jackson-version}</version>
-            </dependency>
-            <dependency>
-                <groupId>org.codehaus.jackson</groupId>
-                <artifactId>jackson-mapper-asl</artifactId>
-                <version>${jackson-version}</version>
-            </dependency>
-            <dependency>
-                <groupId>org.codehaus.jackson</groupId>
-                <artifactId>jackson-jaxrs</artifactId>
-                <version>${jackson-version}</version>
-            </dependency>
-            <dependency>
-                <groupId>org.codehaus.jackson</groupId>
-                <artifactId>jackson-xc</artifactId>
-                <version>${jackson-version}</version>
-            </dependency>
-            <dependency>
                 <groupId>com.fasterxml.jackson.core</groupId>
                 <artifactId>jackson-databind</artifactId>
-                <version>${jackson-2-version}</version>
+                <version>${jackson2-version}</version>
             </dependency>
             <dependency>
                 <groupId>com.fasterxml.jackson.core</groupId>
                 <artifactId>jackson-core</artifactId>
-                <version>${jackson-2-version}</version>
+                <version>${jackson2-version}</version>
             </dependency>
             <dependency>
                 <groupId>com.fasterxml.jackson.core</groupId>
                 <artifactId>jackson-annotations</artifactId>
-                <version>${jackson-2-annotations-version}</version>
+                <version>${jackson2-version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.fasterxml.jackson.jaxrs</groupId>
+                <artifactId>jackson-jaxrs-json-provider</artifactId>
+                <version>${jackson2-version}</version>
+            </dependency>
+
+            <dependency>
+                <groupId>org.apache.geronimo.specs</groupId>
+                <artifactId>geronimo-atinject_1.0_spec</artifactId>
+                <version>${geronimo-atinject.version}</version>
+            </dependency>
+
+            <dependency>
+                <groupId>org.apache.commons</groupId>
+                <artifactId>commons-lang3</artifactId>
+                <version>${commons-lang3-version}</version>
             </dependency>
 
             <dependency>
@@ -2866,6 +2898,119 @@
                 <groupId>org.apache.cxf</groupId>
                 <artifactId>cxf-tools-wsdlto-frontend-javascript</artifactId>
                 <version>${cxf-version}</version>
+            </dependency>
+            
+            <dependency>
+                <groupId>org.jboss.arquillian.container</groupId>
+                <artifactId>arquillian-container-karaf-managed</artifactId>
+                <version>${arquillian-osgi-version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.jboss.arquillian.container</groupId>
+                <artifactId>arquillian-tomcat-managed-7</artifactId>
+                <version>${arquillian-tomcat-version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.jboss.arquillian.junit</groupId>
+                <artifactId>arquillian-junit-container</artifactId>
+                <version>${arquillian-core-version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.jboss.arquillian.junit</groupId>
+                <artifactId>arquillian-junit-standalone</artifactId>
+                <version>${arquillian-core-version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.jboss.arquillian.osgi</groupId>
+                <artifactId>arquillian-osgi-bundle</artifactId>
+                <version>${arquillian-osgi-version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.jboss.arquillian.testenricher</groupId>
+                <artifactId>arquillian-testenricher-osgi</artifactId>
+                <version>${arquillian-osgi-version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.jboss.gravia</groupId>
+                <artifactId>gravia-container-common</artifactId>
+                <version>${gravia-version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.jboss.gravia</groupId>
+                <artifactId>gravia-container-tomcat-extension</artifactId>
+                <version>${gravia-version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.jboss.gravia</groupId>
+                <artifactId>gravia-container-tomcat-support</artifactId>
+                <version>${gravia-version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.jboss.gravia</groupId>
+                <artifactId>gravia-container-wildfly-extension</artifactId>
+                <version>${gravia-version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.jboss.gravia</groupId>
+                <artifactId>gravia-itests-common</artifactId>
+                <exclusions>
+                    <exclusion>
+                        <groupId>org.jboss.shrinkwrap.resolver</groupId>
+                        <artifactId>shrinkwrap-resolver-depchain</artifactId>
+                    </exclusion>
+                </exclusions>
+                <version>${gravia-version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.jboss.gravia</groupId>
+                <artifactId>gravia-provision</artifactId>
+                <version>${gravia-version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.jboss.gravia</groupId>
+                <artifactId>gravia-repository</artifactId>
+                <version>${gravia-version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.jboss.gravia</groupId>
+                <artifactId>gravia-resolver</artifactId>
+                <version>${gravia-version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.jboss.gravia</groupId>
+                <artifactId>gravia-resource</artifactId>
+                <version>${gravia-version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.jboss.gravia</groupId>
+                <artifactId>gravia-runtime-api</artifactId>
+                <version>${gravia-version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.jboss.gravia</groupId>
+                <artifactId>gravia-runtime-osgi</artifactId>
+                <version>${gravia-version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.jboss.gravia</groupId>
+                <artifactId>gravia-runtime-embedded</artifactId>
+                <version>${gravia-version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.jboss.osgi.metadata</groupId>
+                <artifactId>jbosgi-metadata</artifactId>
+                <version>${osgi-metadata-version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.jboss.shrinkwrap</groupId>
+                <artifactId>shrinkwrap-api</artifactId>
+                <version>${shrinkwrap-version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.jboss.shrinkwrap.resolver</groupId>
+                <artifactId>shrinkwrap-resolver-depchain</artifactId>
+                <version>${shrinkwrap-resolver-version}</version>
+                <type>pom</type>
             </dependency>
 
             <dependency>
@@ -3183,74 +3328,135 @@
                 <version>${servicemix-specs-version}</version>
             </dependency>
             <dependency>
-                <groupId>org.apache.servicemix.specs</groupId>
-                <artifactId>org.apache.servicemix.specs.jaxws-api-2.2</artifactId>
-                <version>${servicemix-specs-version}</version>
+                <groupId>org.wildfly</groupId>
+                <artifactId>wildfly-arquillian-container-managed</artifactId>
+                <version>${wildfly-version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.wildfly</groupId>
+                <artifactId>wildfly-arquillian-protocol-jmx</artifactId>
+                <version>${wildfly-version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.wildfly</groupId>
+                <artifactId>wildfly-server</artifactId>
+                <version>${wildfly-version}</version>
             </dependency>
         </dependencies>
     </dependencyManagement>
 
     <modules>
+        <module>parent</module>
         <module>common-util</module>
         <module>maven-util</module>
         <module>fab</module>
+        <module>fabric8-maven-plugin</module>
+        <module>quickstarts</module>
         <module>fabric</module>
         <module>insight</module>
         <module>mq</module>
-        <module>parent</module>
         <module>process</module>
-        <module>tooling</module>
+        <module>runtime</module>
+        <module>gateway</module>
+        <module>itests</module>
+        <!-- 
+        	Modules that are relevant for the default distribution
+        	and are verified as part of the smoke tests go here.
+        	Everything else goes into respective profiles!
+         -->
     </modules>
 
     <profiles>
         <profile>
+          <id>site</id>
+          <modules>
+            <module>website</module>
+          </modules>
+        </profile>
+        <profile>
             <id>all</id>
             <modules>
-                <module>bai</module>
-                <module>components</module>
-                <module>esb</module>
+                <module>apm</module>
                 <module>patch</module>
                 <module>security</module>
-                <module>quickstarts</module>
+                <module>tooling</module>
             </modules>
         </profile>
-        <profile>
-            <id>esb</id>
-            <modules>
-                <module>esb</module>
-                <module>patch</module>
-            </modules>
-        </profile>
-        <profile>
-            <id>amq</id>
-            <modules>
-                <module>patch</module>
-            </modules>
-        </profile>
-
         <profile>
             <id>distro</id>
             <modules>
-                <module>website</module>
             </modules>
         </profile>
-
+        <profile>
+            <id>release</id>
+            <build>
+              <plugins>
+                <plugin>
+                  <groupId>org.apache.maven.plugins</groupId>
+                  <artifactId>maven-enforcer-plugin</artifactId>
+                  <version>1.3.1</version>
+                  <executions>
+                    <execution>
+                      <id>enforce-no-snapshots</id>
+                      <goals>
+                        <goal>enforce</goal>
+                      </goals>
+                      <configuration>
+                        <rules>
+                          <requireReleaseDeps>
+                            <message>No Snapshots Allowed!</message>
+                          </requireReleaseDeps>
+                        </rules>
+                        <fail>true</fail>
+                      </configuration>
+                    </execution>
+                  </executions>
+                </plugin>
+              </plugins>
+            </build>
+        </profile>
         <profile>
             <id>hawtio-snapshot</id>
             <properties>
-                <hawtio-version>1.3-SNAPSHOT</hawtio-version>
+                <hawtio-version>1.5-SNAPSHOT</hawtio-version>
             </properties>
         </profile>
-
         <profile>
-          <id>jdk17</id>
-          <activation>
-            <jdk>[1.7,)</jdk>
-          </activation>
-          <modules>
-            <module>gateway</module>
-          </modules>
+            <id>license</id>
+            <build>
+                <plugins>
+                  <plugin>
+                    <groupId>com.mycila</groupId>
+                    <artifactId>license-maven-plugin</artifactId>
+                    <version>2.6</version>
+                    <configuration>
+                        <includes>
+                            <include>src/main/java/**</include>
+                            <include>src/test/java/**</include>
+                            <include>pom.xml</include>
+                            <include>**/*.xml</include>
+                            <include>**/*.cfg</include>
+                            <include>**/*.properties</include>
+                        </includes>
+                        <excludes>
+                            <!-- exclude sampel data -->
+                            <exclude>**/src/data/**</exclude>
+                            <exclude>**/resources/data/**</exclude>
+                            <!-- exclude hidden dir -->
+                            <exclude>**/.*/**</exclude>
+                        </excludes>
+                    </configuration>
+                    <executions>
+                        <execution>
+                            <goals>
+                                <goal>check</goal>
+                            </goals>
+                        </execution>
+                    </executions>
+                </plugin>
+              </plugins>
+            </build>
         </profile>
-
     </profiles>
+
 </project>

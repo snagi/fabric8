@@ -1,26 +1,26 @@
 /**
- * Copyright (C) FuseSource, Inc.
- * http://fusesource.com
+ *  Copyright 2005-2014 Red Hat, Inc.
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ *  Red Hat licenses this file to you under the Apache License, version
+ *  2.0 (the "License"); you may not use this file except in compliance
+ *  with the License.  You may obtain a copy of the License at
  *
- *    http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or
+ *  implied.  See the License for the specific language governing
+ *  permissions and limitations under the License.
  */
 package org.elasticsearch.pojo;
 
+import io.fabric8.insight.metrics.model.MetricsStorageService;
 import org.elasticsearch.common.settings.ImmutableSettings;
 import org.elasticsearch.node.Node;
 import org.elasticsearch.node.internal.InternalNode;
-import org.fusesource.insight.elasticsearch.ElasticRest;
-import org.fusesource.insight.storage.StorageService;
+import io.fabric8.insight.elasticsearch.ElasticRest;
+import io.fabric8.insight.storage.StorageService;
 import org.osgi.framework.BundleContext;
 
 import javax.security.auth.Subject;
@@ -51,9 +51,10 @@ public class NodeFactory extends BaseManagedServiceFactory<ExtendedInternalNode>
     }
 
     protected ExtendedInternalNode doCreateInternal(Dictionary properties) {
+        Thread.currentThread().setContextClassLoader(Node.class.getClassLoader());
         ImmutableSettings.Builder builder = ImmutableSettings.settingsBuilder();
         builder.put(settings);
-        builder.classLoader(NodeFactory.class.getClassLoader());
+        builder.classLoader(Node.class.getClassLoader());
         if (properties != null) {
             for (Enumeration e = properties.keys(); e.hasMoreElements();) {
                 String key = e.nextElement().toString();
@@ -79,7 +80,12 @@ public class NodeFactory extends BaseManagedServiceFactory<ExtendedInternalNode>
 
     @Override
     protected String[] getExposedClasses(ExtendedInternalNode node) {
-        return new String[] { Node.class.getName(), ElasticRest.class.getName(), StorageService.class.getName() };
+        return new String[] {
+                Node.class.getName(),
+                ElasticRest.class.getName(),
+                StorageService.class.getName(),
+                MetricsStorageService.class.getName()
+        };
     }
 
 }

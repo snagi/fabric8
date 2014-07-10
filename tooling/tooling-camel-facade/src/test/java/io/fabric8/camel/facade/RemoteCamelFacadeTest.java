@@ -1,5 +1,5 @@
-/*
- * Copyright 2010 Red Hat, Inc.
+/**
+ *  Copyright 2005-2014 Red Hat, Inc.
  *
  *  Red Hat licenses this file to you under the Apache License, version
  *  2.0 (the "License"); you may not use this file except in compliance
@@ -196,7 +196,7 @@ public class RemoteCamelFacadeTest extends CamelTestSupport {
     public void testThreadPools() throws Exception {
         List<CamelThreadPoolMBean> pools = remote.getThreadPools("myCamel");
         assertNotNull(pools);
-        assertEquals(2, pools.size());
+        assertEquals(1, pools.size());
     }
 
     @Test

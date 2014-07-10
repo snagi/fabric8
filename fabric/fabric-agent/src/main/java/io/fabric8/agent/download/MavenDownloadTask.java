@@ -1,18 +1,17 @@
 /**
- * Copyright (C) FuseSource, Inc.
- * http://fusesource.com
+ *  Copyright 2005-2014 Red Hat, Inc.
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ *  Red Hat licenses this file to you under the Apache License, version
+ *  2.0 (the "License"); you may not use this file except in compliance
+ *  with the License.  You may obtain a copy of the License at
  *
- *    http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or
+ *  implied.  See the License for the specific language governing
+ *  permissions and limitations under the License.
  */
 package io.fabric8.agent.download;
 
@@ -23,7 +22,12 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.MalformedURLException;
 import java.net.URL;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Comparator;
+import java.util.List;
+import java.util.Set;
+import java.util.TreeSet;
 import java.util.concurrent.ExecutorService;
 import javax.xml.parsers.ParserConfigurationException;
 
@@ -33,8 +37,8 @@ import io.fabric8.agent.mvn.MavenRepositoryURL;
 import io.fabric8.agent.mvn.Parser;
 import io.fabric8.agent.mvn.Version;
 import io.fabric8.agent.mvn.VersionRange;
-import io.fabric8.utils.URLUtils;
-import io.fabric8.utils.XmlUtils;
+import io.fabric8.common.util.URLUtils;
+import io.fabric8.common.util.XmlUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.w3c.dom.Document;
@@ -68,7 +72,7 @@ public class MavenDownloadTask extends AbstractDownloadTask implements Runnable 
     }
 
     protected File download() throws Exception {
-        Parser parser = new Parser(url.substring("mvn:".length()));
+        Parser parser = Parser.parsePathWithSchemePrefix(url);
         Set<DownloadableArtifact> downloadables;
         if (!parser.getVersion().contains("SNAPSHOT")) {
             downloadables = doCollectPossibleDownloads(parser, Arrays.asList(cache, system, configuration.getLocalRepository()));
@@ -446,8 +450,8 @@ public class MavenDownloadTask extends AbstractDownloadTask implements Runnable 
     private InputStream prepareInputStream(URL repositoryURL, final String path)
             throws IOException {
         String repository = repositoryURL.toExternalForm();
-        if (!repository.endsWith(org.ops4j.pax.url.mvn.internal.Parser.FILE_SEPARATOR)) {
-            repository = repository + org.ops4j.pax.url.mvn.internal.Parser.FILE_SEPARATOR;
+        if (!repository.endsWith(Parser.FILE_SEPARATOR)) {
+            repository = repository + Parser.FILE_SEPARATOR;
         }
         configuration.enableProxy(repositoryURL);
         final URL url = new URL(repository + path);

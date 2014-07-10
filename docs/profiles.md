@@ -11,11 +11,11 @@ A profile is a description of how a logical group of containers needs to be prov
 
 and also defines the OSGi framework that is going to be used.
 
-Each profile can have none, one or more parents, and this allows allows you to have profile hierarchies and a container can be assigned one or more profiles.
-Profiles are also version, which allows you to keep different versions of each profile and then upgrade or rollback containers by changing the version of the profiles they use.
+Each profile can have none, one or more parents, and this allows you to have profile hierarchies and a container can be assigned to one or more profiles.
+Profiles are also versioned, which allows you to keep different versions of each profile and then upgrade or rollback containers by changing the version of the profiles they use.
 
 ### Profile hierarchies
-It is quite often that multiple profiles share similar bits of configuration. Its quite common different application to use common frameworks libraries etc. Defining everything from group up for each profile can be a real pain and is not that easy to maintain.
+It is quite often that multiple profiles share similar bits of configuration. Its quite common for different applications to use common frameworks libraries etc. Defining everything from group up for each profile can be a real pain and is not that easy to maintain.
 To avoid having duplicate configuration across profiles and reduce the required maintenance, Fabric uses a hierarchical model for profiles, which allows you to build a generic profile which contains common configuration and then inherit the common bits.
 
 The section below describes the profiles that are shipped with Fabric out of the box and are a good example of how profile hierarchies work.
@@ -23,7 +23,7 @@ The section below describes the profiles that are shipped with Fabric out of the
 ### Out of the box profiles
 Fabric provides a rich set of profiles *"out of the box" that can be used as the basic building blocks for definining your own profiles. The most important profiles are:
 
-* **default** The default profile defines the all the basic stuff that fabric needs to run. For example it defines the *fabric-agent* feature, the fabric registry url & the list of maven repositories that can be used to download artifacts from.
+* **default** The default profile defines all the basic stuff that fabric needs to run. For example it defines the *fabric-agent* feature, the fabric registry url & the list of maven repositories that can be used to download artifacts from.
 * **karaf** It is a child of **default** (so it doesn't need to define the same things again. It also defines the karaf feature repositories, that can be used for defining any karaf feature.
 * **camel** It is a child of **karaf**. It also defines the camel feature repositories and some core camel features such as *camel-core* & *camel-blueprint*. Any profile for describing camel application is suggested to inherit this one.
 * **cxf** It is a child of **karaf**. It also defines the cxf feature repositories and some core cxf features. It is intended to be the parent of any profile that describes a cxf application.
@@ -32,7 +32,7 @@ Fabric provides a rich set of profiles *"out of the box" that can be used as the
 * **esb** It is a child of **camel**,**mq** & more profiles and also defines the *Fuse ESB* feature repository.
 
 ### Changing the profile of a container
-At any give time you are able to change on of more of the profiles that are assigned to a container. You can use the [fabric:container-change-profile](commands/fabric-container-change-profile.html) command as shown below:
+At any given time you are able to change one of more of the profiles that are assigned to a container. You can use the [fabric:container-change-profile](commands/fabric-container-change-profile.html) command as shown below:
 
       fabric:container-change-profile mycontainer myprofile
 
@@ -73,9 +73,6 @@ The command will display all the profiles and also display their parents and the
         hawtio                                   0              default
         insight                                  0              default
         insight-hdfs                             0              insight
-        jboss-fuse-full                          0              jboss-fuse-medium
-        jboss-fuse-medium                        0              jboss-fuse-minimal, mq
-        jboss-fuse-minimal                       0              karaf, camel
         karaf                                    0              default
         mq                                       0              mq-base
         mq-base                                  0              karaf
@@ -95,12 +92,12 @@ This command will display all information available for the camel profile:
         Container settings
         ----------------------------
         Repositories :
-	        mvn:org.apache.camel.karaf/apache-camel/2.9.0.fuse-7-061/xml/features
+	        mvn:org.apache.camel.karaf/apache-camel/2.13.0/xml/features
 
         Features :
-	        camel-blueprint/2.9.0.fuse-7-061
-	        fabric-camel/99-master-SNAPSHOT
-	        camel-core/2.9.0.fuse-7-061
+	        camel-blueprint/2.13.0
+	        fabric-camel/1.1.0
+	        camel-core/2.13.0
 
 Of course this command does not display what is inherited from the parents of the profile *(in this example the karaf profile)*. To unfold the profile hierarchy and also see the inherited configuration you can use the **--overlay** option:
 
@@ -128,9 +125,9 @@ After the command I can display again the profile and see how the camel profile 
 
         Features :
         	camel-jclouds
-        	camel-blueprint/2.9.0.fuse-7-061
-        	camel-core/2.9.0.fuse-7-061
-        	fabric-camel/99-master-SNAPSHOT
+        	camel-blueprint/2.13.0
+        	camel-core/2.13.0
+        	fabric-camel/1.1.0
 
 If you want to remove a feature from the profile you can make use of the **--delete** option. So, if gor example you need to remove the *camel-jclouds* feature:
 
@@ -141,12 +138,15 @@ A more complex example is when you need to modify the a configuration pid of a p
 In the following example, I will modify the *io.fabric8.agent* pid and change the maven repository list. The default profile should contain a section like this:
 
         Agent Properties :
-        	  org.ops4j.pax.url.mvn.repositories = 	http://repo1.maven.org/maven2,
-        		 https://repo.fusesource.com/nexus/content/repositories/releases,
-        		 https://repo.fusesource.com/nexus/content/groups/ea,
-        		 http://repository.springsource.com/maven/bundles/release,
-        		 http://repository.springsource.com/maven/bundles/external,
-        		 http://oss.sonatype.org/content/groups/scala-tools
+        	  org.ops4j.pax.url.mvn.repositories= \
+                http://repo1.maven.org/maven2@id=central, \
+                https://repo.fusesource.com/nexus/content/groups/public@id=fusepublic, \
+                https://repository.jboss.org/nexus/content/repositories/public@id=jbosspublic, \
+                https://repo.fusesource.com/nexus/content/repositories/releases@id=jbossreleases, \
+                https://repo.fusesource.com/nexus/content/groups/ea@id=jbossearlyaccess, \
+                http://repository.springsource.com/maven/bundles/release@id=ebrreleases, \
+                http://repository.springsource.com/maven/bundles/external@id=ebrexternal, \
+                https://oss.sonatype.org/content/groups/scala-tools@id=scala
 
 Let's see how we can change the Agent Properties section *(the agent properties is represented by the io.fabric8.agent pid that was mentioned above)*:
 
@@ -239,17 +239,11 @@ For such cases Fabric allows you export your profiles in text and also import th
 
 To export the Fabric profiles you can use the [fabric:export](commands/fabric-export.html)
 
-         fabric:export
+         fabric:profile-export
 
-This command will export the whole registry to files. The default export location is the fabric/export folder under the karaf home directory. To change the default location you just need to specify the path as an argument:
+This command will export all the profiles to files. The default export location is the fabric/export folder under the karaf home directory. To change the default location you just need to specify the path as an argument:
 
-         fabric:export /path/to/my/export/location
-
-Of course the registry also contains runtime information which may be unneeded. You can choose initial znode from which the export will occur. For example to just keep the configuration data:
-
-         fabric:export -p /fabric/configs /path/to/my/export/location
-
-You also have the option to include or exclude part of the registry using regular expression.
+         fabric:profile-export /path/to/my/export/location
 
 In a similar way the import operation works. Please keep in mind that by default when creating a Fabric the [fabric:create](commands/fabric-create.html) command will import everything it finds in fabric/import under the karaf home folder.
 
@@ -260,13 +254,31 @@ to specify an other folder for importing to the registry you can simply use the 
 
         fabric:create --import-dir /path/to/my/import/location
 
-Of course there are cases where you need to import data to the registry after the registry has been created. You can use the the [fabric:export](commands/fabric-export.html) as described below:
+Of course there are cases where you need to import profiles after fabric has been created. You can use the the [fabric:export](commands/fabric-import-profile.html) as described below:
 
-        fabric:import
+        fabric:profile-import /path/to/my/profiles.zip
 
-All the arguments and options of the [fabric:export](commands/fabric-export.html) are also available to the [fabric:import](commands/fabric-import.html) command.
+The `profile-import` command import profiles stored as zip files from url locations. You can also import using maven coordinates such as:
 
-For example if you exported the registry starting from the /fabric/configs/ znode and want to import them back starting from the same znode *(this is what makes sense, when exporting starting from a specific znode to import back starting from the same)*:
+        fabric:profile-import mvn:com.foo/mystuff/1.0/zip/profile
 
-      fabric:import -p /fabric/configs /path/to/my/import/location
+Fabric provides a Maven Plugin fabric8:zip which allows to export profiles to zips. Read  more about this at the Continues Deployment section.
 
+Fabric provides the [maven fabric8 plugin](mavenPlugin.html) supporting the _fabric8:zip_ goal to export profiles to zips. This allows end users to develop projects, and easily export their projects as zips which can be imported into fabric. Read more about this at the [continues deployment](continuousDeployment.html) section.
+
+#### Importing initial profiles 
+
+When fabric is started it imports an initial set of profiles from the `<fabric_home>/fabric/import` directory. 
+
+In addition fabric imports additional .zip files from the following two sources:
+
+1. .zip files which have been copied to the `<fabric_home>/fabric` directory. 
+1. .properties file which haven been copied to the `<fabric_home>/fabric` directory. 
+
+In the .properties files, you specify url locations for .zip files to be imported. For example fabric uses this to import its own quickstarts out of the box, by having a `quickstarts.properties` file with the following content
+
+    quickstarts = mvn:io.fabric8.quickstarts/fabric8-quickstarts-parent/${project.version}/zip/profile
+
+##### Disabling quickstarts
+
+This allows easily to disable importing the quickstarts, by either deleting the `quickstarts.properties` file, or disable the above line,  by prefixing the line with the `#` character.

@@ -1,18 +1,17 @@
 /**
- * Copyright (C) FuseSource, Inc.
- * http://fusesource.com
+ *  Copyright 2005-2014 Red Hat, Inc.
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ *  Red Hat licenses this file to you under the Apache License, version
+ *  2.0 (the "License"); you may not use this file except in compliance
+ *  with the License.  You may obtain a copy of the License at
  *
- *    http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or
+ *  implied.  See the License for the specific language governing
+ *  permissions and limitations under the License.
  */
 package io.fabric8.boot.commands;
 
@@ -20,8 +19,9 @@ import static io.fabric8.zookeeper.utils.ZooKeeperUtils.exists;
 import io.fabric8.api.Constants;
 import io.fabric8.api.ContainerOptions;
 import io.fabric8.api.RuntimeProperties;
-import io.fabric8.internal.FabricConstants;
+import io.fabric8.api.FabricConstants;
 import io.fabric8.utils.BundleUtils;
+import io.fabric8.utils.PasswordEncoder;
 import io.fabric8.utils.Ports;
 import io.fabric8.utils.SystemProperties;
 import io.fabric8.utils.shell.ShellUtils;
@@ -80,7 +80,7 @@ final class JoinAction extends AbstractAction {
     @Option(name = "-m", aliases = {"--manual-ip"}, description = "An address to use, when using the manualip resolver.")
     String manualIp;
 
-    @Option(name = "--zookeeper-password", multiValued = false, description = "The ensemble password to use (one will be generated if not given)")
+    @Option(name = "--zookeeper-password", multiValued = false, description = "The ensemble password to use.")
     private String zookeeperPassword;
 
     @Argument(required = false, index = 1, multiValued = false, description = "Container name to use in fabric. By default a karaf name will be used")
@@ -98,37 +98,52 @@ final class JoinAction extends AbstractAction {
 
     @Override
     protected Object doExecute() throws Exception {
-        String oldName = runtimeProperties.getProperty(SystemProperties.KARAF_NAME);
+        String oldName = runtimeProperties.getRuntimeIdentity();
         if (containerName == null) {
             containerName = oldName;
         }
 
         if (resolver != null) {
-            runtimeProperties.setProperty(ZkDefs.LOCAL_RESOLVER_PROPERTY, resolver);
+            System.setProperty(ZkDefs.LOCAL_RESOLVER_PROPERTY, resolver);
         }
 
         if (manualIp != null) {
-            runtimeProperties.setProperty(ZkDefs.MANUAL_IP, manualIp);
+            System.setProperty(ZkDefs.MANUAL_IP, manualIp);
         }
 
         if (bindAddress != null) {
-            runtimeProperties.setProperty(ZkDefs.BIND_ADDRESS, bindAddress);
+            System.setProperty(ZkDefs.BIND_ADDRESS, bindAddress);
         }
 
         zookeeperPassword = zookeeperPassword != null ? zookeeperPassword : ShellUtils.retrieveFabricZookeeperPassword(session);
-        runtimeProperties.setProperty(ZkDefs.MINIMUM_PORT, String.valueOf(minimumPort));
-        runtimeProperties.setProperty(ZkDefs.MAXIMUM_PORT, String.valueOf(maximumPort));
+
+        if (zookeeperPassword == null) {
+            zookeeperPassword = promptForZookeeperPassword();
+        }
+
+        if (zookeeperPassword == null || zookeeperPassword.isEmpty()) {
+            System.out.println("No password specified. Cannot join fabric ensemble.");
+            return null;
+        }
+        ShellUtils.storeZookeeperPassword(session, zookeeperPassword);
+
+        log.debug("Encoding ZooKeeper password.");
+        String encodedPassword = PasswordEncoder.encode(zookeeperPassword);
+
+        System.setProperty(ZkDefs.MINIMUM_PORT, String.valueOf(minimumPort));
+        System.setProperty(ZkDefs.MAXIMUM_PORT, String.valueOf(maximumPort));
 
         if (!containerName.equals(oldName)) {
             if (force || permissionToRenameContainer()) {
                 if (!registerContainer(containerName, zookeeperPassword, profile, force)) {
-                    System.err.print("A container with the name: " + containerName + " is already member of the cluster. You can specify a different name as an argument.");
+                    System.err.println("A container with the name: " + containerName + " is already member of the cluster. You can specify a different name as an argument.");
                     return null;
                 }
 
-                runtimeProperties.setProperty(SystemProperties.KARAF_NAME, containerName);
-                runtimeProperties.setProperty("zookeeper.url", zookeeperUrl);
-                runtimeProperties.setProperty("zookeeper.password", zookeeperPassword);
+                System.setProperty(SystemProperties.KARAF_NAME, containerName);
+                //Ensure that if we bootstrap CuratorFramework via RuntimeProperties password is set before the URL.
+                System.setProperty("zookeeper.password", encodedPassword);
+                System.setProperty("zookeeper.url", zookeeperUrl);
                 //Rename the container
                 String karafEtc = runtimeProperties.getProperty(SystemProperties.KARAF_ETC);
                 File file = new File(karafEtc, "system.properties");
@@ -136,15 +151,15 @@ final class JoinAction extends AbstractAction {
                 props.put(SystemProperties.KARAF_NAME, containerName);
                 //Also pass zookeeper information so that the container can auto-join after the restart.
                 props.put("zookeeper.url", zookeeperUrl);
-                props.put("zookeeper.password", zookeeperPassword);
+                props.put("zookeeper.password", encodedPassword);
                 props.save();
 
                 if (!nonManaged) {
                     installBundles();
                 }
                 //Restart the container
-                runtimeProperties.setProperty("karaf.restart", "true");
-                runtimeProperties.setProperty("karaf.restart.clean", "false");
+                System.setProperty("karaf.restart", "true");
+                System.setProperty("karaf.restart.clean", "false");
                 bundleContext.getBundle(0).stop();
 
                 return null;
@@ -159,7 +174,7 @@ final class JoinAction extends AbstractAction {
             Configuration config = configurationAdmin.getConfiguration(Constants.ZOOKEEPER_CLIENT_PID);
             Hashtable<String, Object> properties = new Hashtable<String, Object>();
             properties.put("zookeeper.url", zookeeperUrl);
-            properties.put("zookeeper.password", zookeeperPassword);
+            properties.put("zookeeper.password", PasswordEncoder.encode(encodedPassword));
             config.setBundleLocation(null);
             config.update(properties);
             if (!nonManaged) {
@@ -167,6 +182,12 @@ final class JoinAction extends AbstractAction {
             }
             return null;
         }
+    }
+
+    private String promptForZookeeperPassword() throws IOException {
+        String password = ShellUtils.readLine(session, "Ensemble password: ", true);
+
+        return password;
     }
 
     /**
@@ -213,32 +234,14 @@ final class JoinAction extends AbstractAction {
      * @throws IOException
      */
     private boolean permissionToRenameContainer() throws IOException {
-        for (; ; ) {
-            StringBuffer sb = new StringBuffer();
-            System.err.println("You are about to change the container name. This action will restart the container.");
-            System.err.println("The local shell will automatically restart, but ssh connections will be terminated.");
-            System.err.println("The container will automatically join: " + zookeeperUrl + " the cluster after it restarts.");
-            System.err.print("Do you wish to proceed (yes/no):");
-            System.err.flush();
-            for (; ; ) {
-                int c = session.getKeyboard().read();
-                if (c < 0) {
-                    return false;
-                }
-                System.err.print((char) c);
-                if (c == '\r' || c == '\n') {
-                    break;
-                }
-                sb.append((char) c);
-            }
-            String str = sb.toString();
-            if ("yes".equals(str)) {
-                return true;
-            }
-            if ("no".equals(str)) {
-                return false;
-            }
-        }
+        StringBuffer sb = new StringBuffer();
+        System.err.println("You are about to change the container name. This action will restart the container.");
+        System.err.println("The local shell will automatically restart, but ssh connections will be terminated.");
+        System.err.println("The container will automatically join: " + zookeeperUrl + " the cluster after it restarts.");
+        System.err.flush();
+
+        String response = ShellUtils.readLine(session, "Do you wish to proceed (yes/no): ", false);
+        return response != null && (response.toLowerCase().equals("yes") || response.toLowerCase().equals("y"));
     }
 
     public void installBundles() throws BundleException {

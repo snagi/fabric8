@@ -1,5 +1,5 @@
-/*
- * Copyright 2010 Red Hat, Inc.
+/**
+ *  Copyright 2005-2014 Red Hat, Inc.
  *
  *  Red Hat licenses this file to you under the Apache License, version
  *  2.0 (the "License"); you may not use this file except in compliance
@@ -17,7 +17,9 @@ package io.fabric8.camel.facade.mbean;
 
 import java.util.List;
 
+/*
 import org.apache.camel.fabric.FabricTracerEventMessage;
+*/
 
 /**
  * Used for JBoss Fuse 6.0 and older versions of Camel.
@@ -38,9 +40,13 @@ public interface CamelFabricTracerMBean {
 
     void resetTraceCounter();
 
+/*
+    TODO should we just remove this API now?
+
     List<FabricTracerEventMessage> dumpTracedMessages(String nodeId);
 
     List<FabricTracerEventMessage> dumpAllTracedMessages();
+*/
 
     String dumpAllTracedMessagesAsXml();
 

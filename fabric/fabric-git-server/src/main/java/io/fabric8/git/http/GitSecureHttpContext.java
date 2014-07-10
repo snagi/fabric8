@@ -1,23 +1,22 @@
-/*
- * Copyright (C) FuseSource, Inc.
- *   http://fusesource.com
+/**
+ *  Copyright 2005-2014 Red Hat, Inc.
  *
- *   Licensed under the Apache License, Version 2.0 (the "License");
- *   you may not use this file except in compliance with the License.
- *   You may obtain a copy of the License at
+ *  Red Hat licenses this file to you under the Apache License, version
+ *  2.0 (the "License"); you may not use this file except in compliance
+ *  with the License.  You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
- *   Unless required by applicable law or agreed to in writing, software
- *   distributed under the License is distributed on an "AS IS" BASIS,
- *   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- *   See the License for the specific language governing permissions and
- *   limitations under the License.
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or
+ *  implied.  See the License for the specific language governing
+ *  permissions and limitations under the License.
  */
-
 package io.fabric8.git.http;
 
 import io.fabric8.utils.Base64Encoder;
+import org.apache.curator.framework.CuratorFramework;
 import org.osgi.service.http.HttpContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -34,13 +33,16 @@ import javax.security.auth.login.LoginContext;
 import javax.security.auth.login.LoginException;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
-
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
 import java.net.URL;
 import java.security.Principal;
 import java.security.acl.Group;
 import java.util.Enumeration;
+import java.util.Properties;
+
+import static io.fabric8.zookeeper.utils.ZooKeeperUtils.getContainerTokens;
+import static io.fabric8.zookeeper.utils.ZooKeeperUtils.isContainerLogin;
 
 public class GitSecureHttpContext implements HttpContext {
 
@@ -50,15 +52,16 @@ public class GitSecureHttpContext implements HttpContext {
     private static final String HEADER_AUTHORIZATION = "Authorization";
     private static final String AUTHENTICATION_SCHEME_BASIC = "Basic";
 
+    private final HttpContext base;
+    private final CuratorFramework curator;
     private final String realm;
     private final String role;
-    private final HttpContext base;
 
-    public GitSecureHttpContext(HttpContext base, String realm, String role) {
+    public GitSecureHttpContext(HttpContext base, CuratorFramework curator, String realm, String role) {
         this.base = base;
+        this.curator = curator;
         this.realm = realm;
         this.role = role;
-
     }
 
     @Override
@@ -73,9 +76,17 @@ public class GitSecureHttpContext implements HttpContext {
 
     @Override
     public boolean handleSecurity(HttpServletRequest request, HttpServletResponse response) {
-        // Return immediately if the header is missing
+
+        if (LOGGER.isTraceEnabled()) {
+            LOGGER.trace("handleSecurity: request={}", request);
+        }
+
         String authHeader = request.getHeader(HEADER_AUTHORIZATION);
         if (authHeader != null && authHeader.length() > 0) {
+
+            if (LOGGER.isTraceEnabled()) {
+                LOGGER.trace("handleSecurity: Header[Authorization={}]", authHeader);
+            }
 
             // Get the authType (Basic, Digest) and authInfo (user/password) from the header
             authHeader = authHeader.trim();
@@ -92,9 +103,30 @@ public class GitSecureHttpContext implements HttpContext {
                         String username = srcString.substring(0, i);
                         String password = srcString.substring(i + 1);
 
+                        if (LOGGER.isTraceEnabled()) {
+                            LOGGER.trace("handleSecurity: Username={}", username);
+                        }
+                        if (isContainerLogin(username)) {
+                            Properties containers = getContainerTokens(curator);
+                            String token = containers.getProperty(username);
+                            if (token == null) {
+                                throw new FailedLoginException("Container doesn't exist");
+                            } else if (!password.equals(token)) {
+                                throw new FailedLoginException("Tokens do not match");
+                            } else {
+                                // setting these attributes is important as this tells pax-web/Jetty that we are logged in okay
+                                // as per the spec, set attributes
+                                request.setAttribute(HttpContext.AUTHENTICATION_TYPE, HttpServletRequest.BASIC_AUTH);
+                                request.setAttribute(HttpContext.REMOTE_USER, username);
+                                // succeed
+                                return true;
+                            }
+                        }
+
                         // authenticate
                         Subject subject = doAuthenticate(username, password);
                         if (subject != null) {
+                            // setting these attributes is important as this tells pax-web/Jetty that we are logged in okay
                             // as per the spec, set attributes
                             request.setAttribute(HttpContext.AUTHENTICATION_TYPE, HttpServletRequest.BASIC_AUTH);
                             request.setAttribute(HttpContext.REMOTE_USER, username);
@@ -108,7 +140,7 @@ public class GitSecureHttpContext implements HttpContext {
             }
         }
 
-        // request authentication
+        // no authentication header, so return back response that auth is needed
         try {
             response.setHeader(HEADER_WWW_AUTHENTICATE, AUTHENTICATION_SCHEME_BASIC + " realm=\"" + this.realm + "\"");
             // must response with status and flush as Jetty may report org.eclipse.jetty.server.Response Committed before 401 null
@@ -122,7 +154,6 @@ public class GitSecureHttpContext implements HttpContext {
         // inform HttpService that authentication failed
         return false;
     }
-
 
     private Subject doAuthenticate(final String username, final String password) {
         try {

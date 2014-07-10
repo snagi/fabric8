@@ -1,18 +1,17 @@
-/*
- * Copyright (C) FuseSource, Inc.
- *   http://fusesource.com
+/**
+ *  Copyright 2005-2014 Red Hat, Inc.
  *
- *   Licensed under the Apache License, Version 2.0 (the "License");
- *   you may not use this file except in compliance with the License.
- *   You may obtain a copy of the License at
+ *  Red Hat licenses this file to you under the Apache License, version
+ *  2.0 (the "License"); you may not use this file except in compliance
+ *  with the License.  You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
- *   Unless required by applicable law or agreed to in writing, software
- *   distributed under the License is distributed on an "AS IS" BASIS,
- *   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- *   See the License for the specific language governing permissions and
- *   limitations under the License.
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or
+ *  implied.  See the License for the specific language governing
+ *  permissions and limitations under the License.
  */
 package io.fabric8.openshift;
 
@@ -34,6 +33,7 @@ import org.apache.felix.scr.annotations.Component;
 import org.apache.felix.scr.annotations.ConfigurationPolicy;
 import org.apache.felix.scr.annotations.Deactivate;
 import org.apache.felix.scr.annotations.Modified;
+import org.apache.felix.scr.annotations.Properties;
 import org.apache.felix.scr.annotations.Property;
 import org.apache.felix.scr.annotations.Reference;
 import org.apache.felix.scr.annotations.ReferenceCardinality;
@@ -77,6 +77,9 @@ import javax.management.ObjectName;
         configurationPid = "io.fabric8.openshift",
         label = "Fabric8 Openshift Container Provider", policy = ConfigurationPolicy.OPTIONAL, immediate = true, metatype = false)
 @Service(ContainerProvider.class)
+@Properties(
+        @Property(name = "fabric.container.protocol", value = OpenshiftContainerProvider.SCHEME)
+)
 public final class OpenshiftContainerProvider extends AbstractComponent implements ContainerProvider<CreateOpenshiftContainerOptions, CreateOpenshiftContainerMetadata>, ContainerAutoScalerFactory {
 
     public static final String PROPERTY_AUTOSCALE_SERVER_URL = "autoscale.server.url";
@@ -87,7 +90,7 @@ public final class OpenshiftContainerProvider extends AbstractComponent implemen
     public static final String PREFIX_CARTRIDGE_ID = "id:";
 
     private static final transient Logger LOG = LoggerFactory.getLogger(OpenshiftContainerProvider.class);
-    private static final String SCHEME = "openshift";
+    static final String SCHEME = "openshift";
 
     @Reference
     private Configurer configurer;
@@ -201,6 +204,8 @@ public final class OpenshiftContainerProvider extends AbstractComponent implemen
             userEnvVars = new HashMap<String, String>();
             userEnvVars.put("OPENSHIFT_FUSE_ZOOKEEPER_URL", zookeeperUrl);
             userEnvVars.put("OPENSHIFT_FUSE_ZOOKEEPER_PASSWORD", zookeeperPassword);
+            String zkPasswordEncode = System.getProperty("zookeeper.password.encode", "true");
+            userEnvVars.put("OPENSHIFT_FUSE_ZOOKEEPER_PASSWORD_ENCODE", zkPasswordEncode);
         }
 
         String initGitUrl = null;
@@ -258,6 +263,7 @@ public final class OpenshiftContainerProvider extends AbstractComponent implemen
     public void stop(Container container) {
         assertValid();
         getContainerApplication(container, true).stop();
+        container.setProvisionResult(Container.PROVISION_STOPPED);
     }
 
     @Override

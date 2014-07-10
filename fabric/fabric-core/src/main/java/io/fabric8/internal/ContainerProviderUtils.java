@@ -1,31 +1,19 @@
 /**
- * Copyright (C) FuseSource, Inc.
- * http://fusesource.com
+ *  Copyright 2005-2014 Red Hat, Inc.
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ *  Red Hat licenses this file to you under the Apache License, version
+ *  2.0 (the "License"); you may not use this file except in compliance
+ *  with the License.  You may obtain a copy of the License at
  *
- *    http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or
+ *  implied.  See the License for the specific language governing
+ *  permissions and limitations under the License.
  */
-
 package io.fabric8.internal;
-
-import io.fabric8.api.Constants;
-import io.fabric8.api.CreateContainerMetadata;
-import io.fabric8.api.CreateEnsembleOptions;
-import io.fabric8.api.CreateRemoteContainerOptions;
-import io.fabric8.utils.Base64Encoder;
-import io.fabric8.utils.HostUtils;
-import io.fabric8.utils.ObjectUtils;
-import io.fabric8.utils.Ports;
-import io.fabric8.zookeeper.ZkDefs;
 
 import java.io.BufferedReader;
 import java.io.InputStream;
@@ -38,6 +26,17 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
+
+import io.fabric8.api.Constants;
+import io.fabric8.api.CreateContainerMetadata;
+import io.fabric8.api.CreateEnsembleOptions;
+import io.fabric8.api.CreateRemoteContainerOptions;
+import io.fabric8.api.FabricConstants;
+import io.fabric8.common.util.ObjectUtils;
+import io.fabric8.utils.Base64Encoder;
+import io.fabric8.utils.HostUtils;
+import io.fabric8.utils.Ports;
+import io.fabric8.zookeeper.ZkDefs;
 
 public final class ContainerProviderUtils {
     public static final String FAILURE_PREFIX = "Command Failed:";
@@ -179,12 +178,14 @@ public final class ContainerProviderUtils {
             appendFile(sb, "etc/system.properties", Arrays.asList(HostUtils.PREFERED_ADDRESS_PROPERTY_NAME + "=" + options.getPreferredAddress()));
         }
 
+        String zkPasswordEncode = System.getProperty("zookeeper.password.encode", "true");
         if (options.isEnsembleServer()) {
             appendFile(sb, "etc/system.properties", Arrays.asList("zookeeper.password = " + options.getZookeeperPassword()));
+            appendFile(sb, "etc/system.properties", Arrays.asList("zookeeper.password.encode = " + zkPasswordEncode));
             appendFile(sb, "etc/system.properties", Arrays.asList(CreateEnsembleOptions.ENSEMBLE_AUTOSTART + "=true"));
             appendFile(sb, "etc/system.properties", Arrays.asList(CreateEnsembleOptions.AGENT_AUTOSTART + "=true"));
-            appendFile(sb, "etc/system.properties", Arrays.asList(CreateEnsembleOptions.PROFILES_AUTOIMPORT_PATH + "=${karaf.home}/fabric/import/"));
-            if (options != null && options.getUsers() != null) {
+            appendFile(sb, "etc/system.properties", Arrays.asList(CreateEnsembleOptions.PROFILES_AUTOIMPORT_PATH + "=${runtime.home}/fabric/import/"));
+            if (options.getUsers() != null) {
                 appendFile(sb, "etc/users.properties",  Arrays.asList("\n"));
                 for (Map.Entry<String, String> entry : options.getUsers().entrySet()) {
                     appendFile(sb, "etc/users.properties", Arrays.asList(entry.getKey() + "=" + entry.getValue()));
@@ -193,6 +194,7 @@ public final class ContainerProviderUtils {
         } else if (options.getZookeeperUrl() != null) {
             appendFile(sb, "etc/system.properties", Arrays.asList("zookeeper.url = " + options.getZookeeperUrl()));
             appendFile(sb, "etc/system.properties", Arrays.asList("zookeeper.password = " + options.getZookeeperPassword()));
+            appendFile(sb, "etc/system.properties", Arrays.asList("zookeeper.password.encode = " + zkPasswordEncode));
             appendFile(sb, "etc/system.properties", Arrays.asList(CreateEnsembleOptions.AGENT_AUTOSTART + "=true"));
             appendToLineInFile(sb, "etc/org.apache.karaf.features.cfg", "featuresBoot=", "fabric-agent,fabric-git,");
         }

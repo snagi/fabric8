@@ -1,5 +1,5 @@
-/*
- * Copyright 2010 Red Hat, Inc.
+/**
+ *  Copyright 2005-2014 Red Hat, Inc.
  *
  *  Red Hat licenses this file to you under the Apache License, version
  *  2.0 (the "License"); you may not use this file except in compliance
@@ -15,12 +15,12 @@
  */
 package io.fabric8.partition.internal;
 
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.Maps;
 import io.fabric8.partition.WorkItem;
 import io.fabric8.partition.WorkItemListener;
 import io.fabric8.partition.WorkItemRepository;
-import org.codehaus.jackson.map.ObjectMapper;
-import org.codehaus.jackson.type.TypeReference;
 
 import java.io.File;
 import java.util.HashMap;

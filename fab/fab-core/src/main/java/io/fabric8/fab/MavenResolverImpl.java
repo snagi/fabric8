@@ -1,20 +1,18 @@
 /**
- * Copyright (C) FuseSource, Inc.
- * http://fusesource.com
+ *  Copyright 2005-2014 Red Hat, Inc.
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ *  Red Hat licenses this file to you under the Apache License, version
+ *  2.0 (the "License"); you may not use this file except in compliance
+ *  with the License.  You may obtain a copy of the License at
  *
- *    http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or
+ *  implied.  See the License for the specific language governing
+ *  permissions and limitations under the License.
  */
-
 package io.fabric8.fab;
 
 import java.io.File;
@@ -38,11 +36,11 @@ import java.util.regex.Pattern;
 import org.apache.maven.model.Model;
 import org.apache.maven.model.io.xpp3.MavenXpp3Reader;
 import org.codehaus.plexus.util.xml.pull.XmlPullParserException;
-import org.fusesource.common.util.Filter;
-import org.fusesource.common.util.Filters;
-import org.fusesource.common.util.IOHelpers;
-import org.fusesource.common.util.Objects;
-import org.fusesource.common.util.Strings;
+import io.fabric8.common.util.Filter;
+import io.fabric8.common.util.Filters;
+import io.fabric8.common.util.IOHelpers;
+import io.fabric8.common.util.Objects;
+import io.fabric8.common.util.Strings;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.sonatype.aether.RepositoryEvent;
@@ -90,20 +88,15 @@ public class MavenResolverImpl implements MavenResolver {
     private String[] repositories = {
             "http://repo2.maven.org/maven2",
             "https://repo.fusesource.com/nexus/content/groups/public",
-            "https://repo.fusesource.com/nexus/content/groups/ea",
+            "https://repository.jboss.org/nexus/content/groups/fs-public",
+            "https://repository.jboss.org/nexus/content/groups/public/",
+            "https://repository.jboss.org/nexus/content/groups/ea/",
             "http://repository.springsource.com/maven/bundles/release",
             "http://repository.springsource.com/maven/bundles/external",
             "http://repository.springsource.com/maven/libraries/release",
             "http://repository.springsource.com/maven/libraries/external",
-            /*
-            "https://repo.fusesource.com/nexus/content/groups/m2-proxy",
-            */
-            "https://repo.fusesource.com/maven2",
             "https://oss.sonatype.org/content/groups/public",
             "http://download.java.net/maven/1"};
-            /*,
-            "http://repository.jboss.org/maven2"
-            */
 
     private String data;
 

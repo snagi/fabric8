@@ -1,44 +1,83 @@
-## Get Started
+
+## Getting Started
+
+### Download
+
+<div class="row">
+  <div class="col-md-4 text-center">
+    <a class="btn btn-large btn-success" href="http://central.maven.org/maven2/io/fabric8/fabric8-karaf/1.1.0.CR2/fabric8-karaf-1.1.0.CR2.zip">fabric8-karaf-1.1.0.CR2.zip</a>
+  </div>
+  <!-- TODO these are not ready yet
+  Note that the [Apache Tomcat](https://tomcat.apache.org/) and [Apache TomEE](http://tomee.apache.org/) distributions are still experimental; the [Apache Karaf](http://karaf.apache.org/) based distro is currently rock solid and complete ;) -->
+  <div class="col-md-4 text-center">
+    <a class="btn btn-large btn-warning" title="Warning!  Expiremental!" href="http://central.maven.org/maven2/io/fabric8/runtime/fabric8-tomcat/1.1.0.CR2/fabric8-tomcat-1.1.0.CR2.zip">fabric8-tomcat-1.1.0.CR2.zip</a>
+    <p><small><em>This distro is still expiremental</em></small></p>
+  </div>
+  <div class="col-md-4 text-center">
+    <a class="btn btn-large btn-warning" title="Warning!  Expiremental!" href="http://central.maven.org/maven2/io/fabric8/runtime/fabric8-tomee/1.1.0.CR2/fabric8-tomee-1.1.0.CR2.zip">fabric8-tomee-1.1.0.CR2.zip</a>
+    <p><small><em>This distro is still expiremental</em></small></p>
+  </div>
+</div>
+
+If you've used a previous version you may want to check out the [Change Log](http://fabric8.io/changes/index.html)
 
 ### Installation
 
-First you need to download a <a class="btn" href="https://repository.jboss.org/nexus/content/repositories/ea/io/fabric8/fabric8-karaf/1.0.0.redhat-328/fabric8-karaf-1.0.0.redhat-328.tar.gz">fabric8 distribution</a>
-
-Then unpack the tarball:
+Unpack the tarball:
 
     cd ~/Downloads
-    tar xf fabric8-karaf-1.0.0.redhat-328.tar.gz
-    cd fabric8-karaf-1.0.0.redhat-328
+    unzip fabric8-karaf-1.1.0.CR2.tar.gz
+    cd fabric8-karaf-1.1.0.CR2
 
-Or you could build the project with [maven](http://maven.apache.org/) via:
+Or, [build the project](https://github.com/fabric8io/fabric8/blob/master/readme-build.md) with [maven](http://maven.apache.org/) via:
 
-    mvn -Dtest=false -DfailIfNoTests=false clean install -Pall
+    mvn -DskipTests clean install -Pall
     cd fabric/fabric8-karaf/target
-    tar xf fabric8-karaf-1.0.0-SNAPSHOT.tar.gz
-    cd fabric8-karaf-1.0.0-SNAPSHOT
+    unzip fabric8-karaf-1.1.0-SNAPSHOT.zip
+    cd fabric8-karaf-1.1.0-SNAPSHOT
 
 ### Create a fabric
 
-From the distro, start up the container via:
+By default fabric starts up with a default admin user with username `admin` and password `admin`.
+This can be changed by editing the `etc/users.properties` file before starting fabric for the first time.
 
-    bin/fusefabric
+Now to create a fabric using the karaf distribution type:
 
-Once the container starts up, create a Fabric via:
+    bin/fabric8
 
-    fabric:create --new-user admin --new-user-password admin --wait-for-provisioning
+If you are using the Tomcat or TomEE distribution type:
 
-Once the command has completed you have a working Fabric and you can connect to the console
+    bin/fabric8 run
+
+Once the container has started up, you have a working Fabric and you can connect to the console
 
 ### Use the console
 
-Then open the [hawtio based](http://hawt.io/) console via the link: <a class="btn" href="http://localhost:8181/">localhost:8181</a>
+Then open the [hawtio based](http://hawt.io/) console via the Karaf web console, which runs on [port 8181](http://localhost:8181/)
 
-Then check out the documentation in the [embedded fabric8 wiki](http://localhost:8181/hawtio/index.html#/wiki/branch/1.0/view/fabric/profiles) to guide you through all the available [profiles](#/site/book/doc/index.md?chapter=profiles_md) you can create in a new container or add to an existing container.
+    http://localhost:8181/
 
-Or check out the [documentation on how to use the command shell](#/site/book/doc/index.md?chapter=agent_md)
+If you are using the Tomcat or TomEE distribution then the console is on [port 8080](http://localhost:8080/hawtio/)
 
-### View a demo
+    http://localhost:8080/hawtio/
 
-To help you get started you could watch one of the demos in the  <a class="btn" href="https://vimeo.com/album/2635012">JBoss Fuse and JBoss A-MQ demo album</a>
+Then check out the documentation in the [embedded fabric8 wiki](http://localhost:8181/hawtio/index.html#/wiki/branch/1.0/view/fabric/profiles) to guide you through all the available [profiles](profiles.html) you can create in a new container or add to an existing container.
 
-For example try this: <a class="btn" href="https://vimeo.com/80625940">JBoss Fuse 6.1 Demo</a>
+Or check out:
+
+ * [how to use the command shell](agent.html)
+ * [how to use git with fabric8](git.html)
+
+#### View a demo
+
+To help you get started you could watch one of the demos in the  <a class="btn btn-success" href="https://vimeo.com/album/2635012">JBoss Fuse and JBoss A-MQ demo album</a>
+
+For example try the <a class="btn btn-success" href="https://vimeo.com/80625940">JBoss Fuse 6.1 Demo</a>
+
+#### Try QuickStarts
+
+New users to Fabric8 should try the [QuickStarts](http://fabric8.io/gitbook/quickstarts.html).
+
+#### Read the documentation
+
+Check out the [Overview](http://fabric8.io/gitbook/overview.html) and [User Guide](http://fabric8.io/gitbook/index.html).

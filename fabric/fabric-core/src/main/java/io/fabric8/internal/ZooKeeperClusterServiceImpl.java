@@ -1,18 +1,17 @@
 /**
- * Copyright (C) FuseSource, Inc.
- * http://fusesource.com
+ *  Copyright 2005-2014 Red Hat, Inc.
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ *  Red Hat licenses this file to you under the Apache License, version
+ *  2.0 (the "License"); you may not use this file except in compliance
+ *  with the License.  You may obtain a copy of the License at
  *
- *    http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or
+ *  implied.  See the License for the specific language governing
+ *  permissions and limitations under the License.
  */
 package io.fabric8.internal;
 
@@ -40,6 +39,7 @@ import io.fabric8.api.jcip.ThreadSafe;
 import io.fabric8.api.scr.AbstractComponent;
 import io.fabric8.api.scr.ValidatingReference;
 import io.fabric8.utils.DataStoreUtils;
+import io.fabric8.utils.PasswordEncoder;
 import io.fabric8.utils.Ports;
 import io.fabric8.utils.SystemProperties;
 import io.fabric8.zookeeper.ZkPath;
@@ -68,6 +68,8 @@ import org.apache.felix.scr.annotations.Reference;
 import org.apache.felix.scr.annotations.Service;
 import org.osgi.service.cm.Configuration;
 import org.osgi.service.cm.ConfigurationAdmin;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 @ThreadSafe
 @Component(name = "io.fabric8.zookeeper.cluster.service", label = "Fabric8 ZooKeeper Cluster Service", metatype = false)
@@ -91,6 +93,8 @@ public final class ZooKeeperClusterServiceImpl extends AbstractComponent impleme
     @Reference(referenceInterface = ZooKeeperClusterBootstrap.class)
     private final ValidatingReference<ZooKeeperClusterBootstrap> bootstrap = new ValidatingReference<ZooKeeperClusterBootstrap>();
 
+    private static final Logger LOGGER = LoggerFactory.getLogger(ZooKeeperClusterServiceImpl.class);
+    
     @Activate
     void activate() {
         activateComponent();
@@ -154,7 +158,7 @@ public final class ZooKeeperClusterServiceImpl extends AbstractComponent impleme
             }
             Configuration config = configAdmin.get().getConfiguration(Constants.ZOOKEEPER_CLIENT_PID, null);
             String zooKeeperUrl = config != null && config.getProperties() != null ? (String) config.getProperties().get("zookeeper.url") : null;
-            String karafName = runtimeProperties.get().getProperty(SystemProperties.KARAF_NAME);
+            String karafName = runtimeProperties.get().getRuntimeIdentity();
             if (zooKeeperUrl == null) {
                 if (containers.size() != 1 || !containers.get(0).equals(karafName)) {
                     throw new EnsembleModificationFailed("The first zookeeper cluster must be configured on this container only.", EnsembleModificationFailed.Reason.INVALID_ARGUMENTS);
@@ -333,9 +337,9 @@ public final class ZooKeeperClusterServiceImpl extends AbstractComponent impleme
                         }
                     });
 
-                    setData(dst, ZkPath.CONFIG_ENSEMBLE_PASSWORD.getPath(), options.getZookeeperPassword());
-                    setData(dst, ZkPath.CONFIG_ENSEMBLE_URL.getPath(), connectionUrl);
-                    setData(curator.get(), ZkPath.CONFIG_ENSEMBLE_PASSWORD.getPath(), options.getZookeeperPassword());
+                    setData(dst, ZkPath.CONFIG_ENSEMBLE_PASSWORD.getPath(), PasswordEncoder.encode(options.getZookeeperPassword()));
+                    setData(dst, ZkPath.CONFIG_ENSEMBLE_URL.getPath(), connectionUrl);                    
+                    setData(curator.get(), ZkPath.CONFIG_ENSEMBLE_PASSWORD.getPath(), PasswordEncoder.encode(options.getZookeeperPassword()));
                     setData(curator.get(), ZkPath.CONFIG_ENSEMBLE_URL.getPath(), connectionUrl);
 
                     // Wait until all containers switched

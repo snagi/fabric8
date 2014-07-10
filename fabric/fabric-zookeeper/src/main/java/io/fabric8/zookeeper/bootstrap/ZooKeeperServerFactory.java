@@ -1,18 +1,17 @@
 /**
- * Copyright (C) FuseSource, Inc.
- * http://fusesource.com
+ *  Copyright 2005-2014 Red Hat, Inc.
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ *  Red Hat licenses this file to you under the Apache License, version
+ *  2.0 (the "License"); you may not use this file except in compliance
+ *  with the License.  You may obtain a copy of the License at
  *
- *    http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or
+ *  implied.  See the License for the specific language governing
+ *  permissions and limitations under the License.
  */
 package io.fabric8.zookeeper.bootstrap;
 
@@ -27,6 +26,9 @@ import io.fabric8.utils.SystemProperties;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.nio.file.FileSystem;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Properties;
@@ -107,10 +109,8 @@ public class ZooKeeperServerFactory extends AbstractComponent {
 
         // Remove the dependency on the current dir from dataDir
         String dataDir = props.getProperty("dataDir");
-        if (dataDir != null && dataDir.startsWith(CreateEnsembleOptions.DEFAULT_DATA_DIR)) {
-            RuntimeProperties sysprops = runtimeProperties.get();
-            dataDir = dataDir.substring(dataDir.indexOf('/'));
-            dataDir = sysprops.getProperty(SystemProperties.KARAF_DATA) + dataDir;
+        if (dataDir != null && !Paths.get(dataDir).isAbsolute()) {
+            dataDir = runtimeProperties.get().getHomePath().resolve(dataDir).toFile().getAbsolutePath();
             props.setProperty("dataDir", dataDir);
         }
 
@@ -262,6 +262,10 @@ public class ZooKeeperServerFactory extends AbstractComponent {
         public void destroy() throws Exception {
             cnxnFactory.shutdown();
             cnxnFactory.join();
+            if (server.getZKDatabase() != null) {
+                // see https://issues.apache.org/jira/browse/ZOOKEEPER-1459
+                server.getZKDatabase().close();
+            }
         }
 
         @Override

@@ -1,18 +1,17 @@
 /**
- * Copyright (C) FuseSource, Inc.
- * http://fusesource.com
+ *  Copyright 2005-2014 Red Hat, Inc.
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ *  Red Hat licenses this file to you under the Apache License, version
+ *  2.0 (the "License"); you may not use this file except in compliance
+ *  with the License.  You may obtain a copy of the License at
  *
- *    http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or
+ *  implied.  See the License for the specific language governing
+ *  permissions and limitations under the License.
  */
 package io.fabric8.configadmin;
 
@@ -27,6 +26,7 @@ import io.fabric8.api.Profile;
 import io.fabric8.api.jcip.ThreadSafe;
 import io.fabric8.api.scr.AbstractComponent;
 import io.fabric8.api.scr.ValidatingReference;
+
 import org.osgi.service.cm.Configuration;
 import org.osgi.service.cm.ConfigurationAdmin;
 import org.osgi.service.url.URLStreamHandlerService;
@@ -51,6 +51,13 @@ import java.util.concurrent.atomic.AtomicInteger;
 public final class FabricConfigAdminBridge extends AbstractComponent implements Runnable {
 
     public static final String FABRIC_ZOOKEEPER_PID = "fabric.zookeeper.pid";
+    /**
+     * Configuration property that indicates if old configuration should be preserved.
+     * By default, previous configuration is discarded and new is used instead.
+     * When setting this property to <code>true</code>, new values override existing ones
+     * and the old values are kept unchanged.
+     */
+    public static final String FABRIC_CONFIG_MERGE = "fabric.config.merge";
     public static final String LAST_MODIFIED = "lastModified";
 
     private static final Logger LOGGER = LoggerFactory.getLogger(FabricConfigAdminBridge.class);
@@ -173,6 +180,16 @@ public final class FabricConfigAdminBridge extends AbstractComponent implements 
             c.put(FABRIC_ZOOKEEPER_PID, pid);
             if (config.getBundleLocation() != null) {
                 config.setBundleLocation(null);
+            }
+            if ("true".equals(c.get(FABRIC_CONFIG_MERGE)) && old != null) {
+                // CHECK: if we remove FABRIC_CONFIG_MERGE property, profile update
+                // would remove the original properties - only profile-defined will be used
+                //c.remove(FABRIC_CONFIG_MERGE);
+                if (LOGGER.isDebugEnabled()) {
+                    LOGGER.debug("");
+                }
+                old.putAll(c);
+                c = old;
             }
             config.update(c);
         } else {

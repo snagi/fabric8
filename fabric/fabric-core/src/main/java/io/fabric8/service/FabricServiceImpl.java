@@ -1,58 +1,37 @@
 /**
- * Copyright (C) FuseSource, Inc.
- * http://fusesource.com
+ *  Copyright 2005-2014 Red Hat, Inc.
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ *  Red Hat licenses this file to you under the Apache License, version
+ *  2.0 (the "License"); you may not use this file except in compliance
+ *  with the License.  You may obtain a copy of the License at
  *
- *    http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or
+ *  implied.  See the License for the specific language governing
+ *  permissions and limitations under the License.
  */
 package io.fabric8.service;
 
-import static org.apache.felix.scr.annotations.ReferenceCardinality.OPTIONAL_MULTIPLE;
+import static io.fabric8.internal.PlaceholderResolverHelpers.getSchemesForProfileConfigurations;
+import static io.fabric8.utils.DataStoreUtils.substituteBundleProperty;
 import static io.fabric8.zookeeper.utils.ZooKeeperUtils.exists;
 import static io.fabric8.zookeeper.utils.ZooKeeperUtils.getChildren;
+import static io.fabric8.zookeeper.utils.ZooKeeperUtils.getChildrenSafe;
 import static io.fabric8.zookeeper.utils.ZooKeeperUtils.getSubstitutedData;
 import static io.fabric8.zookeeper.utils.ZooKeeperUtils.getSubstitutedPath;
+import static org.apache.felix.scr.annotations.ReferenceCardinality.OPTIONAL_MULTIPLE;
 
-import java.io.IOException;
-import java.net.URI;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.LinkedHashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Properties;
-import java.util.Set;
-import java.util.SortedMap;
-import java.util.TreeMap;
-import java.util.concurrent.ConcurrentHashMap;
-
-import io.fabric8.api.visibility.VisibleForTesting;
-import org.apache.curator.framework.CuratorFramework;
-import org.apache.felix.scr.annotations.Activate;
-import org.apache.felix.scr.annotations.Component;
-import org.apache.felix.scr.annotations.Deactivate;
-import org.apache.felix.scr.annotations.Reference;
-import org.apache.felix.scr.annotations.ReferencePolicy;
-import org.apache.felix.scr.annotations.Service;
-import org.codehaus.jackson.map.DeserializationConfig;
-import org.codehaus.jackson.map.ObjectMapper;
-import io.fabric8.api.Container;
+import com.fasterxml.jackson.databind.DeserializationFeature;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import io.fabric8.api.Constants;
+import io.fabric8.api.Container;
 import io.fabric8.api.ContainerAutoScaler;
 import io.fabric8.api.ContainerAutoScalerFactory;
-import io.fabric8.api.Containers;
 import io.fabric8.api.ContainerProvider;
+import io.fabric8.api.Containers;
 import io.fabric8.api.CreateContainerBasicMetadata;
 import io.fabric8.api.CreateContainerBasicOptions;
 import io.fabric8.api.CreateContainerMetadata;
@@ -65,20 +44,52 @@ import io.fabric8.api.FabricService;
 import io.fabric8.api.FabricStatus;
 import io.fabric8.api.NullCreationStateListener;
 import io.fabric8.api.PatchService;
+import io.fabric8.api.PlaceholderResolver;
 import io.fabric8.api.PortService;
 import io.fabric8.api.Profile;
 import io.fabric8.api.ProfileRequirements;
 import io.fabric8.api.RuntimeProperties;
 import io.fabric8.api.Version;
 import io.fabric8.api.jcip.ThreadSafe;
+import io.fabric8.api.jmx.MQBrokerStatusDTO;
 import io.fabric8.api.scr.AbstractComponent;
 import io.fabric8.api.scr.ValidatingReference;
+import io.fabric8.api.visibility.VisibleForTesting;
 import io.fabric8.internal.ContainerImpl;
 import io.fabric8.internal.VersionImpl;
 import io.fabric8.utils.DataStoreUtils;
+import io.fabric8.utils.PasswordEncoder;
 import io.fabric8.utils.SystemProperties;
 import io.fabric8.zookeeper.ZkPath;
+import io.fabric8.zookeeper.utils.InterpolationHelper;
 import io.fabric8.zookeeper.utils.ZooKeeperUtils;
+
+import java.io.IOException;
+import java.net.URI;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Properties;
+import java.util.Set;
+import java.util.SortedMap;
+import java.util.TreeMap;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
+
+import org.apache.curator.framework.CuratorFramework;
+import org.apache.felix.scr.annotations.Activate;
+import org.apache.felix.scr.annotations.Component;
+import org.apache.felix.scr.annotations.Deactivate;
+import org.apache.felix.scr.annotations.Reference;
+import org.apache.felix.scr.annotations.ReferencePolicy;
+import org.apache.felix.scr.annotations.Service;
 import org.osgi.framework.BundleContext;
 import org.osgi.service.cm.Configuration;
 import org.osgi.service.cm.ConfigurationAdmin;
@@ -87,21 +98,16 @@ import org.slf4j.LoggerFactory;
 
 import com.google.common.base.Strings;
 
-import java.util.Collection;
-import java.util.concurrent.CopyOnWriteArrayList;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.TimeUnit;
-
 /**
  * FabricService
  * |_ ConfigurationAdmin
+ * |_ PlaceholderResolver (optional,multiple)
  * |_ CuratorFramework (@see ManagedCuratorFramework)
  * |  |_ ACLProvider (@see CuratorACLManager)
  * |_ DataStore (@see CachingGitDataStore)
  *    |_ CuratorFramework  --^
  *    |_ DataStoreRegistrationHandler (@see DataStoreTemplateRegistry)
  *    |_ GitService (@see FabricGitServiceImpl)
- *    |_ PlaceholderResolver (optional,multiple)
  *    |_ ContainerProvider (optional,multiple) (@see ChildContainerProvider)
  *    |  |_ FabricService --^
  *    |_ PortService (@see ZookeeperPortService)
@@ -117,6 +123,24 @@ public final class FabricServiceImpl extends AbstractComponent implements Fabric
 
     private static final Logger LOGGER = LoggerFactory.getLogger(FabricServiceImpl.class);
 
+    // Logical Dependencies
+    @Reference
+    private ChecksumPlaceholderResolver checksumPlaceholderResolver;
+    @Reference
+    private ContainerPlaceholderResolver containerPlaceholderResolver;
+    @Reference
+    private EncryptedPropertyResolver encryptedPropertyResolver;
+    @Reference
+    private EnvPlaceholderResolver envPlaceholderResolver;
+    @Reference
+    private PortPlaceholderResolver portPlaceholderResolver;
+    @Reference
+    private ProfilePropertyPointerResolver profilePropertyPointerResolver;
+    @Reference
+    private VersionPropertyPointerResolver versionPropertyPointerResolver;
+    @Reference
+    private ZookeeperPlaceholderResolver zookeeperPlaceholderResolver;
+
     @Reference(referenceInterface = ConfigurationAdmin.class)
     private final ValidatingReference<ConfigurationAdmin> configAdmin = new ValidatingReference<ConfigurationAdmin>();
     @Reference(referenceInterface = RuntimeProperties.class)
@@ -129,6 +153,8 @@ public final class FabricServiceImpl extends AbstractComponent implements Fabric
     private final ValidatingReference<PortService> portService = new ValidatingReference<PortService>();
     @Reference(referenceInterface = ContainerProvider.class, bind = "bindProvider", unbind = "unbindProvider", cardinality = OPTIONAL_MULTIPLE, policy = ReferencePolicy.DYNAMIC)
     private final Map<String, ContainerProvider> providers = new ConcurrentHashMap<String, ContainerProvider>();
+    @Reference(referenceInterface = PlaceholderResolver.class, bind = "bindPlaceholderResolver", unbind = "unbindPlaceholderResolver", cardinality = OPTIONAL_MULTIPLE, policy = ReferencePolicy.DYNAMIC)
+    private final Map<String, PlaceholderResolver> placeholderResolvers = new ConcurrentHashMap<String, PlaceholderResolver>();
 
     private String defaultRepo = FabricService.DEFAULT_REPO_URI;
     private BundleContext bundleContext;
@@ -144,10 +170,14 @@ public final class FabricServiceImpl extends AbstractComponent implements Fabric
         deactivateComponent();
     }
 
-    // FIXME public access on the impl
-    public CuratorFramework getCurator() {
+    @Override
+    @SuppressWarnings("unchecked")
+    public <T> T adapt(Class<T> type) {
         assertValid();
-        return curator.get();
+        if (type.isAssignableFrom(CuratorFramework.class)) {
+            return (T) curator.get();
+        }
+        return null;
     }
 
     @Override
@@ -189,7 +219,7 @@ public final class FabricServiceImpl extends AbstractComponent implements Fabric
     @Override
     public String getCurrentContainerName() {
         assertValid();
-        return runtimeProperties.get().getProperty(SystemProperties.KARAF_NAME);
+        return runtimeProperties.get().getRuntimeIdentity();
     }
 
     @Override
@@ -316,13 +346,15 @@ public final class FabricServiceImpl extends AbstractComponent implements Fabric
         boolean destroyed = false;
         try {
             ContainerProvider provider = getProvider(container, true);
-            try {
-                provider.stop(container);
-            } catch (Exception ex) {
-                //Ignore error while stopping and try to destroy.
+            if (provider != null) {
+                try {
+                    provider.stop(container);
+                } catch (Exception ex) {
+                    //Ignore error while stopping and try to destroy.
+                }
+                provider.destroy(container);
+                destroyed = true;
             }
-            provider.destroy(container);
-            destroyed = true;
 
         } finally {
             try {
@@ -383,7 +415,7 @@ public final class FabricServiceImpl extends AbstractComponent implements Fabric
             }
 
             ObjectMapper mapper = new ObjectMapper();
-            mapper.configure(DeserializationConfig.Feature.FAIL_ON_UNKNOWN_PROPERTIES, false);
+            mapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
             Map optionsMap = mapper.readValue(mapper.writeValueAsString(options), Map.class);
             String versionId = options.getVersion() != null ? options.getVersion() : getDataStore().getDefaultVersion();
             Set<String> profileIds = options.getProfiles();
@@ -414,6 +446,8 @@ public final class FabricServiceImpl extends AbstractComponent implements Fabric
                 }
                 Class cl = options.getClass().getClassLoader().loadClass(options.getClass().getName() + "$Builder");
                 CreateContainerBasicOptions.Builder builder = (CreateContainerBasicOptions.Builder) mapper.readValue(mapper.writeValueAsString(optionsMap), cl);
+                //We always want to pass the obfuscated version of the password to the container provider.
+                builder = (CreateContainerBasicOptions.Builder) builder.zookeeperPassword(PasswordEncoder.encode(getZookeeperPassword()));
                 final CreateContainerOptions containerOptions = builder.build();
                 final CreationStateListener containerListener = listener;
                 new Thread("Creating container " + containerName) {
@@ -431,7 +465,6 @@ public final class FabricServiceImpl extends AbstractComponent implements Fabric
                                 }
                                 ContainerImpl container = new ContainerImpl(parent, metadata.getContainerName(), FabricServiceImpl.this);
                                 metadata.setContainer(container);
-                                container.setMetadata(metadata);
                                 LOGGER.info("The container " + metadata.getContainerName() + " has been successfully created");
                             } else {
                                 LOGGER.info("The creation of the container " + metadata.getContainerName() + " has failed", metadata.getFailure());
@@ -491,6 +524,107 @@ public final class FabricServiceImpl extends AbstractComponent implements Fabric
     }
 
     @Override
+    public String getRestAPI() {
+        assertValid();
+        String restApiFolder = ZkPath.REST_API_CLUSTERS.getPath("FabricResource/fabric8");
+        try {
+            CuratorFramework curatorFramework = curator.get();
+            if (curatorFramework != null) {
+                List<String> versions = getChildrenSafe(curatorFramework, restApiFolder);
+                for (String version : versions) {
+                    String versionPath = restApiFolder + "/" + version;
+                    List<String> containers = getChildrenSafe(curatorFramework, versionPath);
+                    for (String container : containers) {
+                        String containerPath = versionPath + "/" + container;
+                        String answer = getFirstService(containerPath);
+                        if (!Strings.isNullOrEmpty(answer)) {
+                            return answer;
+                        }
+                    }
+                }
+            }
+        } catch (Exception e) {
+            //On exception just return uri.
+            LOGGER.warn("Failed to find API " + restApiFolder + ". " + e, e);
+        }
+        return null;
+    }
+
+    protected String getFirstService(String containerPath) throws Exception {
+    CuratorFramework curatorFramework = curator.get();
+        if (curatorFramework != null) {
+            byte[] data = curatorFramework.getData().forPath(containerPath);
+            if (data != null && data.length > 0) {
+                String text = new String(data).trim();
+                if (!text.isEmpty()) {
+                    ObjectMapper mapper = new ObjectMapper();
+                    Map<String, Object> map = mapper.readValue(data, HashMap.class);
+                    Object serviceValue = map.get("services");
+                    if (serviceValue instanceof List) {
+                        List services = (List) serviceValue;
+                        if (services != null) {
+                            if (!services.isEmpty()) {
+                                List<String> serviceTexts = new ArrayList<String>();
+                                for (Object service : services) {
+                                    String serviceText = getSubstitutedData(curatorFramework, service.toString());
+                                    if (io.fabric8.common.util.Strings.isNotBlank(serviceText)) {
+                                        return serviceText;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        return null;
+    }
+
+    @Override
+    public String getGitUrl() {
+        assertValid();
+        String restApiFolder = ZkPath.GIT.getPath();
+        try {
+            CuratorFramework curatorFramework = curator.get();
+            if (curatorFramework != null) {
+                List<String> versions = getChildrenSafe(curatorFramework, restApiFolder);
+                for (String version : versions) {
+                    String versionPath = restApiFolder + "/" + version;
+                    String answer = getFirstService(versionPath);
+                    if (!Strings.isNullOrEmpty(answer)) {
+                        return answer;
+                    }
+                }
+            }
+        } catch (Exception e) {
+            //On exception just return uri.
+            LOGGER.warn("Failed to find API " + restApiFolder + ". " + e, e);
+        }
+        return null;
+    }
+
+    @Override
+    public String getWebConsoleUrl() {
+        Container[] containers = null;
+        try {
+            containers = getContainers();
+        } catch (Exception e) {
+            LOGGER.debug("Ignored exception trying to find containers: " + e, e);
+            return null;
+        }
+        for (Container aContainer : containers) {
+            Profile[] profiles = aContainer.getProfiles();
+            for (Profile aProfile : profiles) {
+                String id = aProfile.getId();
+                if (id.equals("fabric")) {
+                    return profileWebAppURL("io.hawt.hawtio-web", id, aProfile.getVersion());
+                }
+            }
+        }
+        return null;
+    }
+
+    @Override
     public URI getMavenRepoURI() {
         assertValid();
         URI uri = URI.create(getDefaultRepo());
@@ -499,13 +633,13 @@ public final class FabricServiceImpl extends AbstractComponent implements Fabric
                 List<String> children = getChildren(curator.get(), ZkPath.MAVEN_PROXY.getPath("download"));
                 if (children != null && !children.isEmpty()) {
                     Collections.sort(children);
-                }
 
-                String mavenRepo = getSubstitutedPath(curator.get(), ZkPath.MAVEN_PROXY.getPath("download") + "/" + children.get(0));
-                if (mavenRepo != null && !mavenRepo.endsWith("/")) {
-                    mavenRepo += "/";
+                    String mavenRepo = getSubstitutedPath(curator.get(), ZkPath.MAVEN_PROXY.getPath("download") + "/" + children.get(0));
+                    if (mavenRepo != null && !mavenRepo.endsWith("/")) {
+                        mavenRepo += "/";
+                    }
+                    uri = new URI(mavenRepo);
                 }
-                uri = new URI(mavenRepo);
             }
         } catch (Exception e) {
             //On exception just return uri.
@@ -548,19 +682,39 @@ public final class FabricServiceImpl extends AbstractComponent implements Fabric
                 List<String> children = getChildren(curator.get(), ZkPath.MAVEN_PROXY.getPath("upload"));
                 if (children != null && !children.isEmpty()) {
                     Collections.sort(children);
+    
+                    String mavenRepo = getSubstitutedPath(curator.get(), ZkPath.MAVEN_PROXY.getPath("upload") + "/" + children.get(0));
+                    if (mavenRepo != null && !mavenRepo.endsWith("/")) {
+                        mavenRepo += "/";
+                    }
+                    uri = new URI(mavenRepo);
                 }
-
-                String mavenRepo = getSubstitutedPath(curator.get(), ZkPath.MAVEN_PROXY.getPath("upload") + "/" + children.get(0));
-                if (mavenRepo != null && !mavenRepo.endsWith("/")) {
-                    mavenRepo += "/";
-                }
-                uri = new URI(mavenRepo);
             }
         } catch (Exception e) {
             //On exception just return uri.
         }
         return uri;
     }
+
+
+    @Override
+    public String profileWebAppURL(String webAppId, String profileId, String versionId) {
+        if (versionId == null || versionId.length() == 0) {
+            Version version = getDefaultVersion();
+            if (version != null) {
+                versionId = version.getId();
+            }
+        }
+        List<Container> containers = Containers.containersForProfile(getContainers(), profileId, versionId);
+        for (Container container : containers) {
+            String url = containerWebAppURL(webAppId, container.getId());
+            if (url != null && url.length() > 0) {
+                return url;
+            }
+        }
+        return null;
+    }
+
 
     public String containerWebAppURL(String webAppId, String name) {
         assertValid();
@@ -687,15 +841,27 @@ public final class FabricServiceImpl extends AbstractComponent implements Fabric
     @Override
     public String getZooKeeperUser() {
         assertValid();
-        return "admin";
-        // TODO
-        // return getZookeeperInfo("zookeeper.user");
+        String answer = null;
+        try {
+            answer = getZookeeperInfo("zookeeper.user");
+        } catch (Exception e) {
+            LOGGER.warn("could not find zookeeper.user: " + e, e);
+        }
+        if (Strings.isNullOrEmpty(answer)) {
+            answer = "admin";
+        }
+        return answer;
     }
 
     @Override
     public String getZookeeperPassword() {
         assertValid();
-        return getZookeeperInfo("zookeeper.password");
+        String rawZookeeperPassword = getZookeeperInfo("zookeeper.password");
+        if (rawZookeeperPassword != null) {
+            return PasswordEncoder.decode(rawZookeeperPassword);
+        } else {
+            return null;
+        }
     }
 
     // FIXME public access on the impl
@@ -710,7 +876,7 @@ public final class FabricServiceImpl extends AbstractComponent implements Fabric
                 if (defaultVersion != null) {
                     Profile profile = defaultVersion.getProfile("default");
                     if (profile != null) {
-                        Map<String, String> zookeeperConfig =  profile.getConfiguration(Constants.ZOOKEEPER_CLIENT_PID);
+                        Map<String, String> zookeeperConfig = profile.getConfiguration(Constants.ZOOKEEPER_CLIENT_PID);
                         if (zookeeperConfig != null) {
                             zooKeeperUrl = getSubstitutedData(curator.get(), zookeeperConfig.get(name));
                         }
@@ -970,6 +1136,47 @@ public final class FabricServiceImpl extends AbstractComponent implements Fabric
         return null;
     }
 
+    /**
+     * Performs substitution to configuration based on the registered {@link PlaceholderResolver} instances.
+     */
+    public void substituteConfigurations(final Map<String, Map<String, String>> configs) {
+
+        final Map<String, PlaceholderResolver> resolversSnapshot = new HashMap<String, PlaceholderResolver>(placeholderResolvers);
+
+        // Check that all resolvers are available
+        Set<String> requiredSchemes = getSchemesForProfileConfigurations(configs);
+        Set<String> availableSchemes = resolversSnapshot.keySet();
+        if (!availableSchemes.containsAll(requiredSchemes)) {
+            StringBuilder sb = new StringBuilder();
+            sb.append("Missing Placeholder Resolvers:");
+            for (String scheme : requiredSchemes) {
+                if (!availableSchemes.contains(scheme)) {
+                    sb.append(" ").append(scheme);
+                }
+            }
+            throw new FabricException(sb.toString());
+        }
+
+        final FabricService fabricService = this;
+        for (Map.Entry<String, Map<String, String>> entry : configs.entrySet()) {
+            final String pid = entry.getKey();
+            Map<String, String> props = entry.getValue();
+            for (Map.Entry<String, String> e : props.entrySet()) {
+                final String key = e.getKey();
+                final String value = e.getValue();
+                props.put(key, InterpolationHelper.substVars(value, key, null, props, new InterpolationHelper.SubstitutionCallback() {
+                    public String getValue(String toSubstitute) {
+                        if (toSubstitute != null && toSubstitute.contains(":")) {
+                            String scheme = toSubstitute.substring(0, toSubstitute.indexOf(":"));
+                            return resolversSnapshot.get(scheme).resolve(fabricService, configs, pid, key, toSubstitute);
+                        }
+                        return substituteBundleProperty(toSubstitute, bundleContext);
+                    }
+                }));
+            }
+        }
+    }
+
     void bindConfigAdmin(ConfigurationAdmin service) {
         this.configAdmin.bind(service);
     }
@@ -1019,5 +1226,16 @@ public final class FabricServiceImpl extends AbstractComponent implements Fabric
 
     void unbindProvider(ContainerProvider provider) {
         providers.remove(provider.getScheme());
+    }
+
+    @VisibleForTesting
+    public void bindPlaceholderResolver(PlaceholderResolver resolver) {
+        String resolverScheme = resolver.getScheme();
+        placeholderResolvers.put(resolverScheme, resolver);
+    }
+
+    void unbindPlaceholderResolver(PlaceholderResolver resolver) {
+        String resolverScheme = resolver.getScheme();
+        placeholderResolvers.remove(resolverScheme);
     }
 }

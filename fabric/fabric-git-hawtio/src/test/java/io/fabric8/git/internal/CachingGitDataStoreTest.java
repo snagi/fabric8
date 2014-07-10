@@ -1,53 +1,53 @@
 /**
- * Copyright (C) FuseSource, Inc.
- * http://fusesource.com
+ *  Copyright 2005-2014 Red Hat, Inc.
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ *  Red Hat licenses this file to you under the Apache License, version
+ *  2.0 (the "License"); you may not use this file except in compliance
+ *  with the License.  You may obtain a copy of the License at
  *
- *    http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or
+ *  implied.  See the License for the specific language governing
+ *  permissions and limitations under the License.
  */
 package io.fabric8.git.internal;
+
+import io.fabric8.api.Constants;
+import io.fabric8.api.RuntimeProperties;
+import io.fabric8.api.scr.Configurer;
+import io.fabric8.common.util.Strings;
+import io.fabric8.git.hawtio.FabricGitFacade;
+import io.fabric8.zookeeper.bootstrap.DataStoreTemplateRegistry;
+import io.fabric8.zookeeper.spring.ZKServerFactoryBean;
+import org.apache.curator.framework.CuratorFramework;
+import org.apache.curator.framework.CuratorFrameworkFactory;
+import org.apache.curator.retry.RetryOneTime;
+import org.easymock.EasyMock;
+import org.eclipse.jgit.api.Git;
+import org.eclipse.jgit.lib.StoredConfig;
+import org.gitective.core.RepositoryUtils;
+import org.junit.After;
+import org.junit.Before;
+import org.junit.Test;
+
+import java.io.File;
+import java.io.IOException;
+import java.nio.file.Paths;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.Dictionary;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
-
-import java.io.File;
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-
-import io.fabric8.api.scr.Configurer;
-import io.fabric8.service.ComponentConfigurer;
-import org.apache.curator.framework.CuratorFramework;
-import org.apache.curator.framework.CuratorFrameworkFactory;
-import org.apache.curator.retry.RetryOneTime;
-import org.eclipse.jgit.api.Git;
-import org.eclipse.jgit.lib.StoredConfig;
-import io.fabric8.api.Constants;
-import io.fabric8.api.DefaultRuntimeProperties;
-import io.fabric8.git.hawtio.FabricGitFacade;
-import io.fabric8.utils.Strings;
-import io.fabric8.utils.SystemProperties;
-import io.fabric8.zookeeper.bootstrap.DataStoreTemplateRegistry;
-import io.fabric8.zookeeper.spring.ZKServerFactoryBean;
-import org.gitective.core.RepositoryUtils;
-import org.junit.After;
-import org.junit.Before;
-import org.junit.Test;
 
 public class CachingGitDataStoreTest {
 
@@ -62,6 +62,7 @@ public class CachingGitDataStoreTest {
     private Git remote;
     protected CachingGitDataStore dataStore;
     private String basedir;
+    private RuntimeProperties sysprops;
 
     @Before
     public void setUp() throws Exception {
@@ -69,6 +70,11 @@ public class CachingGitDataStoreTest {
         delete(sfb.getDataDir());
         delete(sfb.getDataLogDir());
         sfb.afterPropertiesSet();
+        sysprops = EasyMock.createMock(RuntimeProperties.class);
+        EasyMock.expect(sysprops.getRuntimeIdentity()).andReturn("root").anyTimes();
+        EasyMock.expect(sysprops.getHomePath()).andReturn(Paths.get("target")).anyTimes();
+        EasyMock.expect(sysprops.getDataPath()).andReturn(Paths.get("target/data")).anyTimes();
+        EasyMock.replay(sysprops);
 
         CuratorFrameworkFactory.Builder builder = CuratorFrameworkFactory.builder()
                 .connectString("localhost:" + sfb.getClientPortAddress().getPort())
@@ -97,8 +103,7 @@ public class CachingGitDataStoreTest {
         config.setString("remote", "origin", "fetch", "+refs/heads/*:refs/remotes/origin/*");
         config.save();
 
-        DefaultRuntimeProperties sysprops = new DefaultRuntimeProperties();
-        sysprops.setProperty(SystemProperties.KARAF_DATA, "target/data");
+
         FabricGitServiceImpl gitService = new FabricGitServiceImpl();
         gitService.bindRuntimeProperties(sysprops);
         gitService.activate();
@@ -113,12 +118,19 @@ public class CachingGitDataStoreTest {
         dataStore.bindRegistrationHandler(registrationHandler);
         dataStore.bindRuntimeProperties(sysprops);
         dataStore.bindConfigurer(new Configurer() {
-            @Override
-            public <T> void configure(Map<String, ?> configuration, T target) throws Exception {
 
+
+            @Override
+            public <T> Map<String, ?> configure(Map<String, ?> configuration, T target, String... ignorePrefix) throws Exception {
+                return null;
+            }
+
+            @Override
+            public <T> Map<String, ?> configure(Dictionary<String, ?> configuration, T target, String... ignorePrefix) throws Exception {
+                return null;
             }
         });
-        Map<String, String> datastoreProperties = new HashMap<String, String>();
+        Map<String, Object> datastoreProperties = new HashMap<String, Object>();
         datastoreProperties.put(GitDataStore.GIT_REMOTE_URL, remoteUrl);
         dataStore.activate(datastoreProperties);
     }
@@ -127,6 +139,7 @@ public class CachingGitDataStoreTest {
     public void tearDown() throws Exception {
         //dataStore.deactivate();
         sfb.destroy();
+        EasyMock.verify(sysprops);
     }
 
     @Test
@@ -150,7 +163,7 @@ public class CachingGitDataStoreTest {
         }
 
         remote.checkout().setName("1.0").call();
-        String importedProfile = "example-camel-twitter";
+        String importedProfile = "example-dozer";
         String profile = importedProfile;
         assertProfileExists(defaultVersion, profile);
 
@@ -160,7 +173,7 @@ public class CachingGitDataStoreTest {
         assertCreateVersion("1.0", version);
 
         assertProfileConfiguration(version, importedProfile, Constants.AGENT_PID, "attribute.parents",
-                "feature-camel insight-camel");
+                "feature-camel");
         assertProfileTextFileConfigurationContains(version, "example-camel-mq", "camel.xml",
                 "http://camel.apache.org/schema/blueprint");
 
@@ -173,7 +186,7 @@ public class CachingGitDataStoreTest {
         // lets test the profile attributes
         Map<String, String> profileAttributes = dataStore.getProfileAttributes(version, importedProfile);
         String parent = profileAttributes.get("parents");
-        assertEquals(importedProfile + ".profileAttributes[parent]", "feature-camel insight-camel", parent);
+        assertEquals(importedProfile + ".profileAttributes[parent]", "feature-camel", parent);
 
         System.out.println("Profile attributes: " + profileAttributes);
         String profileAttributeKey = "myKey";
@@ -208,9 +221,9 @@ public class CachingGitDataStoreTest {
         Map<String, byte[]> tomcatFileConfigurations = dataStore.getFileConfigurations("1.0", "controller-tomcat");
         assertHasFileConfiguration(tomcatFileConfigurations, "tomcat/conf/server.xml.mvel");
 
-        Collection<String> files = dataStore.listFiles("1.0", Arrays.asList("example-camel-twitter"), ".");
-        assertNotNull(files);
-        assertCollectionContains("Should contain file: io.fabric8.examples.camel.twitter.properties", files, "io.fabric8.examples.camel.twitter.properties");
+        Collection<String> schemas = dataStore.listFiles("1.0", Arrays.asList("example-dozer"), "schemas");
+        assertNotNull(schemas);
+        assertContainerEquals("schemas for example-dozer", Arrays.asList("invoice.xsd"), new ArrayList<String>(schemas));
 
         // check we don't accidentally create a profile
         String profileNotCreated = "shouldNotBeCreated";

@@ -1,18 +1,17 @@
 /**
- * Copyright (C) FuseSource, Inc.
- * http://fusesource.com
+ *  Copyright 2005-2014 Red Hat, Inc.
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ *  Red Hat licenses this file to you under the Apache License, version
+ *  2.0 (the "License"); you may not use this file except in compliance
+ *  with the License.  You may obtain a copy of the License at
  *
- *    http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or
+ *  implied.  See the License for the specific language governing
+ *  permissions and limitations under the License.
  */
 package io.fabric8.git.internal;
 
@@ -20,12 +19,13 @@ import java.io.File;
 import java.io.IOException;
 import java.util.List;
 
+import io.fabric8.common.util.Strings;
 import org.eclipse.jgit.api.Git;
 import org.eclipse.jgit.api.errors.GitAPIException;
 import org.eclipse.jgit.api.errors.NoHeadException;
 import org.eclipse.jgit.lib.Ref;
 import org.eclipse.jgit.lib.StoredConfig;
-import io.fabric8.utils.Strings;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -55,14 +55,18 @@ public class GitHelpers {
         return localBranchExists;
     }
 
-
     public static String currentBranch(Git git) {
+        String branch = null;
+        Exception gitException = null;
         try {
-            return git.getRepository().getBranch();
-        } catch (IOException e) {
-            LOG.warn("Failed to get the current branch: " + e, e);
-            return null;
+            branch = git.getRepository().getBranch();
+        } catch (Exception ex) {
+            gitException = ex;
         }
+        if (branch == null || gitException != null) {
+            throw new IllegalStateException("Failed to get the current branch", gitException);
+        }
+        return branch;
     }
 
 
@@ -106,11 +110,13 @@ public class GitHelpers {
     }
 
     public static void removeBranch(Git git, String branch) throws GitAPIException {
-        String current = currentBranch(git);
-        if (equals(current, branch)) {
-            // cannot remove current
-            return;
-        } else if (localBranchExists(git, branch)) {
+        if (localBranchExists(git, branch)) {
+            String current = currentBranch(git);
+            if (equals(current, branch)) {
+                // cannot remove current
+                checkoutBranch(git, "master");
+                return;
+            }
             List<String> list = git.branchDelete().setBranchNames(branch).setForce(true).call();
             if (LOG.isDebugEnabled()) {
                 LOG.debug("Deleted branch " + branch + " with results " + list);

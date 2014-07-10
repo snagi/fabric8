@@ -1,51 +1,91 @@
 /**
- * Copyright (C) FuseSource, Inc.
- * http://fusesource.com
+ *  Copyright 2005-2014 Red Hat, Inc.
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ *  Red Hat licenses this file to you under the Apache License, version
+ *  2.0 (the "License"); you may not use this file except in compliance
+ *  with the License.  You may obtain a copy of the License at
  *
- *    http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or
+ *  implied.  See the License for the specific language governing
+ *  permissions and limitations under the License.
  */
 package io.fabric8.commands;
 
-import java.util.List;
+import io.fabric8.api.FabricService;
+import io.fabric8.api.scr.ValidatingReference;
+import io.fabric8.boot.commands.support.AbstractCommandComponent;
+import io.fabric8.boot.commands.support.ProfileCompleter;
+import io.fabric8.boot.commands.support.VersionCompleter;
+import org.apache.felix.gogo.commands.Action;
+import org.apache.felix.gogo.commands.basic.AbstractCommand;
+import org.apache.felix.scr.annotations.Activate;
+import org.apache.felix.scr.annotations.Component;
+import org.apache.felix.scr.annotations.Deactivate;
+import org.apache.felix.scr.annotations.Property;
+import org.apache.felix.scr.annotations.Reference;
+import org.apache.felix.scr.annotations.Service;
+import org.apache.felix.service.command.Function;
 
-import org.apache.felix.gogo.commands.Argument;
-import org.apache.felix.gogo.commands.Command;
-import org.apache.felix.gogo.commands.Option;
-import io.fabric8.api.Profile;
-import io.fabric8.api.Version;
-import io.fabric8.boot.commands.support.FabricCommand;
-import static io.fabric8.utils.FabricValidations.validateProfileName;
+@Component(immediate = true)
+@Service({ Function.class, AbstractCommand.class })
+@org.apache.felix.scr.annotations.Properties({
+    @Property(name = "osgi.command.scope", value = ProfileCreate.SCOPE_VALUE),
+    @Property(name = "osgi.command.function", value = ProfileCreate.FUNCTION_VALUE)
+})
+public class ProfileCreate extends AbstractCommandComponent {
 
-@Command(name = "profile-create", scope = "fabric", description = "Create a new profile with the specified name and version", detailedDescription = "classpath:profileCreate.txt")
-public class ProfileCreate extends FabricCommand {
+    public static final String SCOPE_VALUE = "fabric";
+    public static final String FUNCTION_VALUE = "profile-create";
+    public static final String DESCRIPTION = "Create a new profile with the specified name and version";
 
-    @Option(name = "--version", description = "The profile version. Defaults to the current default version.")
-    private String version;
-    @Option(name = "--parents", multiValued = true, required = false, description = "Optionally specifies one or multiple parent profiles. To specify multiple parent profiles, specify this flag multiple times on the command line. For example, --parents foo --parents bar.")
-    private List<String> parents;
-    @Argument(index = 0)
-    private String name;
+    @Reference(referenceInterface = FabricService.class)
+    private final ValidatingReference<FabricService> fabricService = new ValidatingReference<FabricService>();
+    @Reference(referenceInterface = VersionCompleter.class, bind = "bindVersionCompleter", unbind = "unbindVersionCompleter")
+    private VersionCompleter versionCompleter; // dummy field
+    @Reference(referenceInterface = ProfileCompleter.class, bind = "bindParentsProfileCompleter", unbind = "unbindParentsProfileCompleter")
+    private VersionCompleter parentsProfileCompleter; // dummy field
 
-    @Override
-    protected Object doExecute() throws Exception {
-        checkFabricAvailable();
-        validateProfileName(name);
-        Version ver = version != null ? fabricService.getVersion(version) : fabricService.getDefaultVersion();
-        
-        Profile[] parents = getProfiles(ver, this.parents);
-        Profile profile = fabricService.getVersion(ver.getId()).createProfile(name);
-        profile.setParents(parents);
-        return null;
+    @Activate
+    void activate() {
+        activateComponent();
     }
 
+    @Deactivate
+    void deactivate() {
+        deactivateComponent();
+    }
+
+    @Override
+    public Action createNewAction() {
+        assertValid();
+        return new ProfileCreateAction(fabricService.get());
+    }
+
+    void bindFabricService(FabricService fabricService) {
+        this.fabricService.bind(fabricService);
+    }
+
+    void unbindFabricService(FabricService fabricService) {
+        this.fabricService.unbind(fabricService);
+    }
+
+    void bindVersionCompleter(VersionCompleter completer) {
+        bindOptionalCompleter("--version", completer);
+    }
+
+    void unbindVersionCompleter(VersionCompleter completer) {
+        unbindOptionalCompleter(completer);
+    }
+
+    void bindParentsProfileCompleter(ProfileCompleter completer) {
+        bindOptionalCompleter("--parents", completer);
+    }
+
+    void unbindParentsProfileCompleter(ProfileCompleter completer) {
+        unbindOptionalCompleter(completer);
+    }
 }

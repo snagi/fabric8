@@ -1,20 +1,18 @@
 /**
- * Copyright (C) FuseSource, Inc.
- * http://fusesource.com
+ *  Copyright 2005-2014 Red Hat, Inc.
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ *  Red Hat licenses this file to you under the Apache License, version
+ *  2.0 (the "License"); you may not use this file except in compliance
+ *  with the License.  You may obtain a copy of the License at
  *
- *    http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or
+ *  implied.  See the License for the specific language governing
+ *  permissions and limitations under the License.
  */
-
 package io.fabric8.service.jclouds;
 
 import static io.fabric8.internal.ContainerProviderUtils.buildStartScript;
@@ -29,6 +27,8 @@ import java.util.concurrent.ConcurrentMap;
 
 import org.apache.curator.framework.CuratorFramework;
 import org.apache.felix.scr.annotations.Component;
+import org.apache.felix.scr.annotations.Properties;
+import org.apache.felix.scr.annotations.Property;
 import org.apache.felix.scr.annotations.Reference;
 import org.apache.felix.scr.annotations.ReferenceCardinality;
 import org.apache.felix.scr.annotations.ReferencePolicy;
@@ -70,6 +70,9 @@ import com.google.common.base.Strings;
 @ThreadSafe
 @Component(name = "io.fabric8.container.provider.jclouds", label = "Fabric8 Jclouds Container Provider", immediate = true, metatype = false)
 @Service(ContainerProvider.class)
+@Properties(
+        @Property(name = "fabric.container.protocol", value = JcloudsContainerProvider.SCHEME)
+)
 public class JcloudsContainerProvider extends AbstractComponent implements ContainerProvider<CreateJCloudsContainerOptions, CreateJCloudsContainerMetadata> {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(JcloudsContainerProvider.class);
@@ -79,7 +82,7 @@ public class JcloudsContainerProvider extends AbstractComponent implements Conta
     private static final String OVERVIEW_FORMAT = "Creating %s nodes on %s. It may take a while ...";
 
 
-    private static final String SCHEME = "jclouds";
+     static final String SCHEME = "jclouds";
 
     @Reference(cardinality = ReferenceCardinality.OPTIONAL_MULTIPLE, bind = "bindComputeService", unbind = "unbindComputeService", referenceInterface = ComputeService.class, policy = ReferencePolicy.DYNAMIC)
     private final ConcurrentMap<String, ComputeService> computeServiceMap = new ConcurrentHashMap<String, ComputeService>();
@@ -221,6 +224,7 @@ public class JcloudsContainerProvider extends AbstractComponent implements Conta
                     jCloudsContainerMetadata.setFailure(new Exception(ContainerProviderUtils.parseScriptFailure(response.getOutput())));
                 }
             } catch (Throwable t) {
+                container.setProvisionResult(Container.PROVISION_STOPPED);
                 jCloudsContainerMetadata.setFailure(t);
             }
         }

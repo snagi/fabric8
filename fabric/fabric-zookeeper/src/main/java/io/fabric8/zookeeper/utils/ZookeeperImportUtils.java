@@ -1,30 +1,27 @@
 /**
- * Copyright (C) FuseSource, Inc.
- * http://fusesource.com
+ *  Copyright 2005-2014 Red Hat, Inc.
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ *  Red Hat licenses this file to you under the Apache License, version
+ *  2.0 (the "License"); you may not use this file except in compliance
+ *  with the License.  You may obtain a copy of the License at
  *
- *    http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or
+ *  implied.  See the License for the specific language governing
+ *  permissions and limitations under the License.
  */
-
 package io.fabric8.zookeeper.utils;
 
 import org.apache.curator.framework.CuratorFramework;
-import io.fabric8.utils.Closeables;
+import io.fabric8.common.util.Closeables;
 
 import java.io.BufferedInputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.InputStream;
-import java.io.StringReader;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.Enumeration;
@@ -38,7 +35,6 @@ import static io.fabric8.zookeeper.utils.RegexSupport.getPatterns;
 import static io.fabric8.zookeeper.utils.RegexSupport.matches;
 
 public class ZookeeperImportUtils {
-
 
     private ZookeeperImportUtils() {
         //Utility Class
@@ -61,6 +57,11 @@ public class ZookeeperImportUtils {
             String key = entry.getKey();
             String data = entry.getValue();
             key = target + key;
+            // FABRIC-1072 - we can't create paths containing '*'
+            // there are more characters which are legal in ZK paths but illegal in different filesystems...
+            if (key.contains("/__asterisk__")) {
+                key = key.replaceAll(Pattern.quote("/__asterisk__"), "/*");
+            }
             paths.add(key);
             if (!matches(include, key, true) || matches(exclude, key, false)) {
                 continue;
@@ -114,18 +115,13 @@ public class ZookeeperImportUtils {
         }
     }
 
-
     private static void getCandidates(File parent, File current, Map<String, String> settings, String target) throws Exception {
-        List<Pattern> profile = getPatterns(new String[]{RegexSupport.PROFILE_REGEX});
-        List<Pattern> containerProperties = getPatterns(new String[]{RegexSupport.PROFILE_CONTAINER_PROPERTIES_REGEX});
         if (current.isDirectory()) {
             for (File child : current.listFiles()) {
                 getCandidates(parent, child, settings, target);
             }
             String p = buildZKPath(parent, current).replaceFirst("/", "");
-            if (!matches(profile, "/" + p, false)) {
-                settings.put(p, null);
-            }
+            settings.put(p, null);
         } else {
             BufferedInputStream in = new BufferedInputStream(new FileInputStream(current));
             byte[] contents = new byte[in.available()];
@@ -136,22 +132,9 @@ public class ZookeeperImportUtils {
                 p = p.substring(0, p.length() - ".cfg".length());
             }
 
-            if (matches(containerProperties, "/" + p, false)) {
-                settings.put(p, new String(contents).replaceAll(RegexSupport.PARENTS_REGEX, ""));
-                Properties props = new Properties();
-                props.load(new StringReader(new String(contents)));
-                if (settings.get(p.substring(0, p.lastIndexOf('/'))) == null) {
-                    String parents = (String) props.get("parents");
-                    if (parents != null && !parents.isEmpty()) {
-                        settings.put(p.substring(0, p.lastIndexOf('/')), "parents=" + parents);
-                    }
-                }
-            } else if (!matches(profile, "/" + p, false)) {
-                settings.put(p, new String(contents));
-            }
+            settings.put(p, new String(contents));
         }
     }
-
 
     private static String buildZKPath(File parent, File current) {
         String rc = "";
@@ -168,11 +151,12 @@ public class ZookeeperImportUtils {
             path = "/" + path;
             if (!paths.contains(path)) {
                 if (!dryRun) {
-                    curator.delete().guaranteed().forPath(path);;
+                    curator.delete().guaranteed().forPath(path);
                 } else {
                     System.out.printf("Deleting path %s and everything under it\n", path);
                 }
             }
         }
     }
+
 }

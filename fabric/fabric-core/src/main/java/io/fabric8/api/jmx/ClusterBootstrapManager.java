@@ -1,3 +1,18 @@
+/**
+ *  Copyright 2005-2014 Red Hat, Inc.
+ *
+ *  Red Hat licenses this file to you under the Apache License, version
+ *  2.0 (the "License"); you may not use this file except in compliance
+ *  with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or
+ *  implied.  See the License for the specific language governing
+ *  permissions and limitations under the License.
+ */
 package io.fabric8.api.jmx;
 
 import java.io.File;
@@ -9,12 +24,13 @@ import javax.management.MBeanServer;
 import javax.management.MalformedObjectNameException;
 import javax.management.ObjectName;
 
+import com.fasterxml.jackson.databind.DeserializationFeature;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import io.fabric8.common.util.JMXUtils;
 import org.apache.felix.scr.annotations.Activate;
 import org.apache.felix.scr.annotations.Component;
 import org.apache.felix.scr.annotations.Deactivate;
 import org.apache.felix.scr.annotations.Reference;
-import org.codehaus.jackson.map.DeserializationConfig;
-import org.codehaus.jackson.map.ObjectMapper;
 import io.fabric8.api.CreateEnsembleOptions;
 import io.fabric8.api.FabricException;
 import io.fabric8.api.RuntimeProperties;
@@ -27,7 +43,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * @author Stan Lewis
  */
 @ThreadSafe
 @Component(label = "Fabric8 ZooKeeper Cluster Bootstrap Manager JMX MBean", metatype = false)
@@ -75,8 +90,8 @@ public final class ClusterBootstrapManager extends AbstractComponent implements 
         Object profileObject = options.remove("profiles");
 
         ObjectMapper mapper = new ObjectMapper();
-        mapper.configure(DeserializationConfig.Feature.FAIL_ON_UNKNOWN_PROPERTIES, false);
-        mapper.configure(DeserializationConfig.Feature.ACCEPT_SINGLE_VALUE_AS_ARRAY, true);
+        mapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
+        mapper.configure(DeserializationFeature.ACCEPT_SINGLE_VALUE_AS_ARRAY, true);
 
         CreateEnsembleOptions.Builder builder = mapper.convertValue(options, CreateEnsembleOptions.Builder.class);
 
@@ -87,7 +102,7 @@ public final class ClusterBootstrapManager extends AbstractComponent implements 
 
         org.apache.felix.utils.properties.Properties userProps = null;
         try {
-            userProps = new org.apache.felix.utils.properties.Properties(new File(sysprops.getProperty("karaf.home") + "/etc/users.properties"));
+            userProps = new org.apache.felix.utils.properties.Properties(sysprops.getConfPath().resolve("users.properties").toFile());
         } catch (IOException e) {
             userProps = new org.apache.felix.utils.properties.Properties();
         }
@@ -99,12 +114,12 @@ public final class ClusterBootstrapManager extends AbstractComponent implements 
         CreateEnsembleOptions answer = builder.users(userProps).withUser(username, password, role).build();
         LOG.debug("Creating ensemble with options: {}", answer);
 
-        sysprops.setProperty(ZkDefs.GLOBAL_RESOLVER_PROPERTY, answer.getGlobalResolver());
-        sysprops.setProperty(ZkDefs.LOCAL_RESOLVER_PROPERTY, answer.getResolver());
-        sysprops.setProperty(ZkDefs.MANUAL_IP, answer.getManualIp());
-        sysprops.setProperty(ZkDefs.BIND_ADDRESS, answer.getBindAddress());
-        sysprops.setProperty(ZkDefs.MINIMUM_PORT, "" + answer.getMinimumPort());
-        sysprops.setProperty(ZkDefs.MAXIMUM_PORT, "" + answer.getMaximumPort());
+        System.setProperty(ZkDefs.GLOBAL_RESOLVER_PROPERTY, answer.getGlobalResolver());
+        System.setProperty(ZkDefs.LOCAL_RESOLVER_PROPERTY, answer.getResolver());
+        System.setProperty(ZkDefs.MANUAL_IP, answer.getManualIp());
+        System.setProperty(ZkDefs.BIND_ADDRESS, answer.getBindAddress());
+        System.setProperty(ZkDefs.MINIMUM_PORT, "" + answer.getMinimumPort());
+        System.setProperty(ZkDefs.MAXIMUM_PORT, "" + answer.getMaximumPort());
 
         return answer;
     }

@@ -1,19 +1,20 @@
 <!--
-  Copyright (C) FuseSource, Inc.
-  http://fusesource.com
 
-  Licensed under the Apache License, Version 2.0 (the "License");
-  you may not use this file except in compliance with the License.
-  You may obtain a copy of the License at
+     Copyright 2005-2014 Red Hat, Inc.
 
-     http://www.apache.org/licenses/LICENSE-2.0
+     Red Hat licenses this file to you under the Apache License, version
+     2.0 (the "License"); you may not use this file except in compliance
+     with the License.  You may obtain a copy of the License at
 
-  Unless required by applicable law or agreed to in writing, software
-  distributed under the License is distributed on an "AS IS" BASIS,
-  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-  See the License for the specific language governing permissions and
-  limitations under the License.
-  -->
+        http://www.apache.org/licenses/LICENSE-2.0
+
+     Unless required by applicable law or agreed to in writing, software
+     distributed under the License is distributed on an "AS IS" BASIS,
+     WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or
+     implied.  See the License for the specific language governing
+     permissions and limitations under the License.
+
+-->
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
     <modelVersion>4.0.0</modelVersion>
@@ -21,22 +22,23 @@
     <parent>
         <groupId>io.fabric8.fab</groupId>
         <artifactId>fab-project</artifactId>
-        <version>1.0.0-SNAPSHOT</version>
+        <version>1.1.0-SNAPSHOT</version>
     </parent>
 
     <artifactId>fab-osgi</artifactId>
     <packaging>bundle</packaging>
 
-    <name>Fuse Application Bundles :: OSGi</name>
+    <name>Fabric8 :: FAB (deprecated) :: OSGi</name>
 
     <properties>
-        <fuse.osgi.embed.dependency>*;scope=compile|runtime;artifactId=!*console*</fuse.osgi.embed.dependency>
+        <fuse.osgi.embed.dependency>*;scope=compile|runtime;artifactId=!*console*,maven-bundle-plugin</fuse.osgi.embed.dependency>
 
         <fuse.osgi.import.defaults>
         </fuse.osgi.import.defaults>
         <fuse.osgi.import.before.defaults/>
         <fuse.osgi.import.additional/>
         <fuse.osgi.import.pkg>
+            !com.google.common.collect,
             !org.apache.maven.*,
             !org.codehaus.plexus.*,
             !org.codehaus.classworlds*,
@@ -109,11 +111,12 @@
             <scope>provided</scope>
         </dependency>
 
-        <!-- We will 'borrow' the bnd Analyzer for Blueprint files from Felix' mven-bundle-plugin -->
+        <!-- We will 'borrow' the bnd Analyzer for Blueprint files from Felix' maven-bundle-plugin -->
         <dependency>
             <groupId>org.apache.felix</groupId>
             <artifactId>maven-bundle-plugin</artifactId>
             <version>${maven-bundle-plugin-version}</version>
+            <scope>provided</scope>
         </dependency>
         <dependency>
             <groupId>org.apache.felix</groupId>
@@ -188,7 +191,19 @@
             <groupId>org.sonatype.aether</groupId>
             <artifactId>aether-connector-wagon</artifactId>
             <version>${aether-version}</version>
+            <!-- clashes with guava -->
+            <exclusions>
+                <exclusion>
+                    <groupId>com.google.collections</groupId>
+                    <artifactId>google-collections</artifactId>
+                </exclusion>
+            </exclusions>
         </dependency>
+        <dependency>
+            <groupId>org.apache.xbean</groupId>
+            <artifactId>xbean-reflect</artifactId>
+            <version>${xbean-reflect-version}</version>
+        </dependency>        
         <dependency>
             <groupId>org.apache.maven</groupId>
             <artifactId>maven-aether-provider</artifactId>
@@ -284,6 +299,7 @@
         <dependency>
             <groupId>org.easymock</groupId>
             <artifactId>easymock</artifactId>
+            <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>org.ops4j.pax.tinybundles</groupId>
@@ -300,6 +316,18 @@
                 <filtering>true</filtering>
             </resource>
         </resources>
+
+        <plugins>
+          <plugin>
+              <groupId>org.apache.felix</groupId>
+              <artifactId>maven-bundle-plugin</artifactId>
+              <configuration>
+                  <instructions>
+                      <Gravia-Enabled>true</Gravia-Enabled>
+                  </instructions>
+              </configuration>
+          </plugin>
+        </plugins>
     </build>
 
     <repositories>

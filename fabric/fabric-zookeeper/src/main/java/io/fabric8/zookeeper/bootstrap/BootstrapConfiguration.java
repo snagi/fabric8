@@ -1,3 +1,18 @@
+/**
+ *  Copyright 2005-2014 Red Hat, Inc.
+ *
+ *  Red Hat licenses this file to you under the Apache License, version
+ *  2.0 (the "License"); you may not use this file except in compliance
+ *  with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or
+ *  implied.  See the License for the specific language governing
+ *  permissions and limitations under the License.
+ */
 package io.fabric8.zookeeper.bootstrap;
 
 /**
@@ -26,12 +41,12 @@ import java.util.Collections;
 import java.util.Dictionary;
 import java.util.Hashtable;
 import java.util.Map;
-import java.util.Properties;
 import java.util.Set;
 
 import io.fabric8.api.ContainerOptions;
 import io.fabric8.api.scr.Configurer;
-import io.fabric8.utils.Strings;
+import io.fabric8.common.util.Strings;
+import io.fabric8.utils.PasswordEncoder;
 
 import org.apache.felix.scr.annotations.Activate;
 import org.apache.felix.scr.annotations.Component;
@@ -39,6 +54,7 @@ import org.apache.felix.scr.annotations.Deactivate;
 import org.apache.felix.scr.annotations.Property;
 import org.apache.felix.scr.annotations.Reference;
 import org.apache.felix.scr.annotations.Service;
+import org.apache.felix.utils.properties.Properties;
 
 import io.fabric8.api.Constants;
 import io.fabric8.api.CreateEnsembleOptions;
@@ -67,6 +83,10 @@ public class BootstrapConfiguration extends AbstractComponent {
     public static final String ENSEMBLE_MARKER = "ensemble-created.properties";
     public static final String COMPONENT_NAME = "io.fabric8.zookeeper.configuration";
 
+    public static final String DEFAULT_ADMIN_USER = "admin";
+    public static final String DEFAULT_ADMIN_ROLE = "admin";
+    public static final String ROLE_DELIMITER = ",";
+
     @Reference
     private Configurer configurer;
     @Reference(referenceInterface = ConfigurationAdmin.class)
@@ -86,7 +106,7 @@ public class BootstrapConfiguration extends AbstractComponent {
     private String bindAddress = "0.0.0.0";
 
     @Property(name = "zookeeper.password", label = "ZooKeeper Password", description = "The zookeeper password", value = "${zookeeper.password}")
-    private String zookeeperPassword = CreateEnsembleOptions.generatePassword();
+    private String zookeeperPassword = null;
 
     @Property(name = "zookeeper.server.port", label = "ZooKeeper Server Port", description = "The zookeeper server binding port", value = "${zookeeper.server.port}")
     private int zookeeperServerPort = 2181;
@@ -112,10 +132,14 @@ public class BootstrapConfiguration extends AbstractComponent {
     @Property(name = "manualip", label = "Global Resolver", description = "The global resolver", value = "${manualip}")
     private String manualip;
 
-    @Property(name = "name", label = "Container Name", description = "The name of the container", value = "${karaf.name}", propertyPrivate = true)
+    @Property(name = "name", label = "Container Name", description = "The name of the container", value = "${runtime.id}", propertyPrivate = true)
     private String name;
-    @Property(name = "home", label = "Container Home", description = "The home directory of the container", value = "${karaf.home}", propertyPrivate = true)
-    private String home;
+    @Property(name = "homeDir", label = "Container Home", description = "The homeDir directory of the container", value = "${runtime.home}", propertyPrivate = true)
+    private File homeDir;
+    @Property(name = "confDir", label = "Container Conf", description = "The configuration directory of the container", value = "${runtime.conf}", propertyPrivate = true)
+    private File confDir;
+    @Property(name = "dataDir", label = "Container Data Dir", description = "The data directory of the container", value = "${runtime.data}", propertyPrivate = true)
+    private File dataDir;
     @Property(name = "zookeeper.url", label = "ZooKeeper URL", description = "The url to an existing zookeeper ensemble", value = "${zookeeper.url}", propertyPrivate = true)
     private String zookeeperUrl;
 
@@ -126,15 +150,30 @@ public class BootstrapConfiguration extends AbstractComponent {
         this.componentContext = componentContext;
         configurer.configure(configuration, this);
 
-        org.apache.felix.utils.properties.Properties userProps = new org.apache.felix.utils.properties.Properties();
+        String decodedZookeeperPassword = null;
+
+        Properties userProps = new Properties();
         // [TODO] abstract access to karaf users.properties
         try {
-            userProps.load(new File(home + "/etc/users.properties"));
+            userProps.load(new File(confDir , "users.properties"));
         } catch (IOException e) {
             LOGGER.warn("Failed to load users from etc/users.properties. No users will be imported.", e);
         }
 
-        options = CreateEnsembleOptions.builder().bindAddress(bindAddress).agentEnabled(agentAutoStart).ensembleStart(ensembleAutoStart).zookeeperPassword(zookeeperPassword)
+        if (Strings.isNotBlank(zookeeperPassword)) {
+            decodedZookeeperPassword = PasswordEncoder.decode(zookeeperPassword);
+        } else if (userProps.containsKey(DEFAULT_ADMIN_USER)) {
+            String passwordAndRole = userProps.getProperty(DEFAULT_ADMIN_USER).trim();
+            decodedZookeeperPassword = passwordAndRole.substring(0, passwordAndRole.indexOf(ROLE_DELIMITER));
+        } else {
+            decodedZookeeperPassword = PasswordEncoder.encode(CreateEnsembleOptions.generatePassword());
+        }
+
+        if (userProps.isEmpty()) {
+            userProps.put(DEFAULT_ADMIN_USER, decodedZookeeperPassword+ ROLE_DELIMITER + DEFAULT_ADMIN_ROLE);
+        }
+
+        options = CreateEnsembleOptions.builder().bindAddress(bindAddress).agentEnabled(agentAutoStart).ensembleStart(ensembleAutoStart).zookeeperPassword(decodedZookeeperPassword)
                 .zooKeeperServerPort(zookeeperServerPort).zooKeeperServerConnectionPort(zookeeperServerConnectionPort).autoImportEnabled(profilesAutoImport)
                 .importPath(profilesAutoImportPath).users(userProps).profiles(profiles).version(version).build();
 
@@ -143,7 +182,7 @@ public class BootstrapConfiguration extends AbstractComponent {
 
         if (!Strings.isNotBlank(zookeeperUrl) && !isCreated && options.isEnsembleStart()) {
             String connectionUrl = getConnectionUrl(options);
-            registrationHandler.get().setRegistrationCallback(new DataStoreBootstrapTemplate(name, home, connectionUrl, options));
+            registrationHandler.get().setRegistrationCallback(new DataStoreBootstrapTemplate(name, homeDir, connectionUrl, options));
 
             createOrUpdateDataStoreConfig(options);
             createZooKeeeperServerConfig(options);
@@ -165,12 +204,16 @@ public class BootstrapConfiguration extends AbstractComponent {
     }
 
     private boolean checkCreated(BundleContext bundleContext) throws IOException {
-        org.apache.felix.utils.properties.Properties props = new org.apache.felix.utils.properties.Properties(bundleContext.getDataFile(ENSEMBLE_MARKER));
+        org.apache.felix.utils.properties.Properties props = new org.apache.felix.utils.properties.Properties(new File(dataDir, ENSEMBLE_MARKER));
         return props.containsKey("created");
     }
 
     private void markCreated(BundleContext bundleContext) throws IOException {
-        org.apache.felix.utils.properties.Properties props = new org.apache.felix.utils.properties.Properties(bundleContext.getDataFile(ENSEMBLE_MARKER));
+        File marker = new File(dataDir, ENSEMBLE_MARKER);
+        if (!marker.exists() && !marker.getParentFile().exists() && !marker.getParentFile().mkdirs()) {
+            throw new IOException("Cannot create marker file");
+        }
+        org.apache.felix.utils.properties.Properties props = new org.apache.felix.utils.properties.Properties(marker);
         props.put("created", "true");
         props.save();
     }
@@ -213,7 +256,7 @@ public class BootstrapConfiguration extends AbstractComponent {
         String serverHost = options.getBindAddress();
         Dictionary<String, Object> properties = new Hashtable<String, Object>();
         if (options.isAutoImportEnabled()) {
-            loadPropertiesFrom(properties, options.getImportPath() + "/fabric/configs/versions/1.0/profiles/default/io.fabric8.zookeeper.server.properties");
+            loadPropertiesFrom(properties, options.getImportPath() + "/fabric/profiles/default.profile/io.fabric8.zookeeper.server.properties");
         }
         properties.put("tickTime", String.valueOf(options.getZooKeeperServerTickTime()));
         properties.put("initLimit", String.valueOf(options.getZooKeeperServerInitLimit()));
@@ -232,13 +275,13 @@ public class BootstrapConfiguration extends AbstractComponent {
     public void createZooKeeeperClientConfig(String connectionUrl, CreateEnsembleOptions options) throws IOException {
         Dictionary<String, Object> properties = new Hashtable<String, Object>();
         if (options.isAutoImportEnabled()) {
-            loadPropertiesFrom(properties, options.getImportPath() + "/fabric/configs/versions/1.0/profiles/default/io.fabric8.zookeeper.properties");
+            loadPropertiesFrom(properties, options.getImportPath() + "/fabric/profiles/default.profile/io.fabric8.zookeeper.properties");
         }
         properties.put("zookeeper.url", connectionUrl);
         properties
                 .put("zookeeper.timeout", System.getProperties().containsKey("zookeeper.timeout") ? System.getProperties().getProperty("zookeeper.timeout") : "30000");
         properties.put("fabric.zookeeper.pid", Constants.ZOOKEEPER_CLIENT_PID);
-        properties.put("zookeeper.password", options.getZookeeperPassword());
+        properties.put("zookeeper.password", PasswordEncoder.encode(options.getZookeeperPassword()));
         Configuration config = configAdmin.get().getConfiguration(Constants.ZOOKEEPER_CLIENT_PID, null);
         config.update(properties);
     }
@@ -252,7 +295,7 @@ public class BootstrapConfiguration extends AbstractComponent {
         } else if (oResolver.equals(ZkDefs.LOCAL_IP)) {
             return HostUtils.getLocalIp();
         } else if (oResolver.equals(ZkDefs.MANUAL_IP) && (oManualIp != null && !oManualIp.isEmpty())) {
-            return options.getManualIp();
+            return oManualIp;
         } else
             return HostUtils.getLocalHostName();
     }
@@ -263,7 +306,7 @@ public class BootstrapConfiguration extends AbstractComponent {
         try {
             is = new FileInputStream(from);
             properties.load(is);
-            for (String key : properties.stringPropertyNames()) {
+            for (String key : properties.keySet()) {
                 dictionary.put(key, properties.get(key));
             }
         } catch (Exception e) {

@@ -1,18 +1,17 @@
 /**
- * Copyright (C) FuseSource, Inc.
- * http://fusesource.com
+ *  Copyright 2005-2014 Red Hat, Inc.
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ *  Red Hat licenses this file to you under the Apache License, version
+ *  2.0 (the "License"); you may not use this file except in compliance
+ *  with the License.  You may obtain a copy of the License at
  *
- *    http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or
+ *  implied.  See the License for the specific language governing
+ *  permissions and limitations under the License.
  */
 package io.fabric8.jaas;
 
@@ -61,6 +60,7 @@ public class ZookeeperLoginModule implements LoginModule {
     private Properties users = new Properties();
     private Properties containers = new Properties();
     private EncryptionSupport encryptionSupport;
+    private String path;
 
     @Override
     @SuppressWarnings({ "rawtypes", "unchecked" })
@@ -71,10 +71,14 @@ public class ZookeeperLoginModule implements LoginModule {
         this.rolePolicy = (String) options.get("role.policy");
         this.encryptionSupport = new BasicEncryptionSupport(options);
         this.debug = Boolean.parseBoolean((String) options.get("debug"));
+        this.path = (String)options.get("path");
+        if (path == null) {
+            path = ZookeeperBackingEngine.USERS_NODE;
+        }
         try {
             CuratorFramework curator = CuratorFrameworkLocator.getCuratorFramework();
             if (curator != null) {
-                users = getProperties(curator, ZookeeperBackingEngine.USERS_NODE);
+                users = getProperties(curator, path);
                 containers = getContainerTokens(curator);
             }
             if (debug) {

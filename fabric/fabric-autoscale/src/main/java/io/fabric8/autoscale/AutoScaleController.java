@@ -1,28 +1,20 @@
-/*
- * Copyright (C) FuseSource, Inc.
- *   http://fusesource.com
+/**
+ *  Copyright 2005-2014 Red Hat, Inc.
  *
- *   Licensed under the Apache License, Version 2.0 (the "License");
- *   you may not use this file except in compliance with the License.
- *   You may obtain a copy of the License at
+ *  Red Hat licenses this file to you under the Apache License, version
+ *  2.0 (the "License"); you may not use this file except in compliance
+ *  with the License.  You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
- *   Unless required by applicable law or agreed to in writing, software
- *   distributed under the License is distributed on an "AS IS" BASIS,
- *   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- *   See the License for the specific language governing permissions and
- *   limitations under the License.
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or
+ *  implied.  See the License for the specific language governing
+ *  permissions and limitations under the License.
  */
-
 package io.fabric8.autoscale;
 
-import org.apache.curator.framework.CuratorFramework;
-import org.apache.felix.scr.annotations.Activate;
-import org.apache.felix.scr.annotations.Component;
-import org.apache.felix.scr.annotations.Deactivate;
-import org.apache.felix.scr.annotations.Reference;
-import org.apache.felix.scr.annotations.ReferenceCardinality;
 import io.fabric8.api.Container;
 import io.fabric8.api.ContainerAutoScaler;
 import io.fabric8.api.Containers;
@@ -34,17 +26,27 @@ import io.fabric8.api.jcip.GuardedBy;
 import io.fabric8.api.jcip.ThreadSafe;
 import io.fabric8.api.scr.AbstractComponent;
 import io.fabric8.api.scr.ValidatingReference;
+import io.fabric8.common.util.Closeables;
 import io.fabric8.groups.Group;
 import io.fabric8.groups.GroupListener;
 import io.fabric8.groups.internal.ZooKeeperGroup;
-import io.fabric8.utils.Closeables;
-import io.fabric8.utils.SystemProperties;
 import io.fabric8.zookeeper.ZkPath;
-import org.osgi.service.cm.ConfigurationAdmin;
+import org.apache.curator.framework.CuratorFramework;
+import org.apache.felix.scr.annotations.Activate;
+import org.apache.felix.scr.annotations.Component;
+import org.apache.felix.scr.annotations.ConfigurationPolicy;
+import org.apache.felix.scr.annotations.Deactivate;
+import org.apache.felix.scr.annotations.Property;
+import org.apache.felix.scr.annotations.Reference;
+import org.apache.felix.scr.annotations.ReferenceCardinality;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Timer;
+import java.util.TimerTask;
+import java.util.concurrent.atomic.AtomicReference;
 
 /**
  * A Fabric auto-scaler which when it becomes the master auto-scales
@@ -52,8 +54,9 @@ import java.util.List;
  * {@link FabricService#setRequirements(io.fabric8.api.FabricRequirements)}
  */
 @ThreadSafe
-@Component(name = "io.fabric8.autoscale", label = "Fabric8 auto scaler", immediate = true, metatype = false)
-public final class AutoScaleController  extends AbstractComponent implements GroupListener<AutoScalerNode> {
+@Component(name = "io.fabric8.autoscale", label = "Fabric8 auto scaler", immediate = true,
+        policy = ConfigurationPolicy.OPTIONAL, metatype = true)
+public final class AutoScaleController extends AbstractComponent implements GroupListener<AutoScalerNode> {
     private static final Logger LOGGER = LoggerFactory.getLogger(AutoScaleController.class);
 
     @Reference(referenceInterface = CuratorFramework.class, bind = "bindCurator", unbind = "unbindCurator")
@@ -64,7 +67,15 @@ public final class AutoScaleController  extends AbstractComponent implements Gro
             bind = "bindContainerAutoScaler", unbind = "unbindContainerAutoScaler")
     private final ValidatingReference<ContainerAutoScaler> containerAutoScaler = new ValidatingReference<ContainerAutoScaler>();
 
-    @GuardedBy("volatile") private volatile Group<AutoScalerNode> group;
+    @Property(name = "pollTime", longValue = 10000,
+            label = "Poll period",
+            description = "The number of milliseconds between polls to check if the system still has its requirements satisfied.")
+    private long pollTime = 10000;
+
+    private AtomicReference<Timer> timer = new AtomicReference<Timer>();
+
+    @GuardedBy("volatile")
+    private volatile Group<AutoScalerNode> group;
 
     private Runnable runnable = new Runnable() {
         @Override
@@ -84,6 +95,7 @@ public final class AutoScaleController  extends AbstractComponent implements Gro
 
     @Deactivate
     void deactivate() {
+        disableTimer();
         deactivateComponent();
         group.remove(this);
         Closeables.closeQuitely(group);
@@ -103,10 +115,12 @@ public final class AutoScaleController  extends AbstractComponent implements Gro
                             LOGGER.info("AutoScaleController is the master");
                             group.update(state);
                             dataStore.trackConfiguration(runnable);
+                            enableTimer();
                             onConfigurationChanged();
                         } else {
                             LOGGER.info("AutoScaleController is not the master");
                             group.update(state);
+                            disableTimer();
                             dataStore.untrackConfiguration(runnable);
                         }
                     } catch (IllegalStateException e) {
@@ -124,9 +138,30 @@ public final class AutoScaleController  extends AbstractComponent implements Gro
         }
     }
 
+    protected void enableTimer() {
+        Timer newTimer = new Timer("fabric8-autoscaler");
+        if (timer.compareAndSet(null, newTimer)) {
+            TimerTask timerTask = new TimerTask() {
+                @Override
+                public void run() {
+                    LOGGER.debug("autoscale timer");
+                    autoScale();
+                }
+            };
+            newTimer.schedule(timerTask, pollTime, pollTime);
+        }
+    }
+
+    protected void disableTimer() {
+        Timer oldValue = timer.getAndSet(null);
+        if (oldValue != null) {
+            oldValue.cancel();
+        }
+    }
+
 
     private void onConfigurationChanged() {
-        LOGGER.info("Configuration has changed; so checking the auto-scaling requirements");
+        LOGGER.debug("Configuration has changed; so checking the auto-scaling requirements");
         autoScale();
     }
 
@@ -209,8 +244,23 @@ public final class AutoScaleController  extends AbstractComponent implements Gro
         return true;
     }
 
+    /**
+     * Returns all the current alive profiles for the given profile
+     */
     private List<Container> containersForProfile(String profile) {
-        return Containers.containersForProfile(fabricService.get().getContainers(), profile);
+        List<Container> answer = new ArrayList<Container>();
+        List<Container> containers = Containers.containersForProfile(fabricService.get().getContainers(), profile);
+        for (Container container : containers) {
+            boolean alive = container.isAlive();
+            boolean provisioningPending = container.isProvisioningPending();
+            if (alive || provisioningPending) {
+                if (LOGGER.isDebugEnabled()) {
+                    LOGGER.debug("Container " + container.getId() + " is alive " + alive + " provision is pending " + provisioningPending);
+                }
+                answer.add(container);
+            }
+        }
+        return answer;
     }
 
     private AutoScalerNode createState() {

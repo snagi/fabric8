@@ -1,42 +1,27 @@
 /**
- * Copyright (C) FuseSource, Inc.
- * http://fusesource.com
+ *  Copyright 2005-2014 Red Hat, Inc.
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ *  Red Hat licenses this file to you under the Apache License, version
+ *  2.0 (the "License"); you may not use this file except in compliance
+ *  with the License.  You may obtain a copy of the License at
  *
- *    http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or
+ *  implied.  See the License for the specific language governing
+ *  permissions and limitations under the License.
  */
 package io.fabric8.agent.utils;
 
-import io.fabric8.agent.mvn.Parser;
-import io.fabric8.api.Profile;
-import io.fabric8.service.VersionPropertyPointerResolver;
-import io.fabric8.utils.MultiException;
-import io.fabric8.utils.Strings;
-import io.fabric8.utils.features.FeatureUtils;
-import org.apache.karaf.features.BundleInfo;
-import org.apache.karaf.features.Feature;
-import org.apache.karaf.features.Repository;
-import org.apache.karaf.features.internal.FeatureValidationUtil;
-import org.apache.karaf.features.internal.RepositoryImpl;
-import io.fabric8.agent.download.DownloadFuture;
-import io.fabric8.agent.download.DownloadManager;
-import io.fabric8.agent.download.FutureListener;
-import io.fabric8.api.FabricService;
-import org.slf4j.LoggerFactory;
-import org.slf4j.Logger;
-
 import java.io.File;
+import java.io.IOException;
+import java.io.StringWriter;
 import java.net.MalformedURLException;
 import java.net.URI;
+import java.util.Collection;
+import java.util.Collections;
 import java.util.Dictionary;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -47,6 +32,24 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicInteger;
+
+import io.fabric8.agent.download.DownloadFuture;
+import io.fabric8.agent.download.DownloadManager;
+import io.fabric8.agent.download.FutureListener;
+import io.fabric8.agent.mvn.Parser;
+import io.fabric8.api.FabricService;
+import io.fabric8.api.Profile;
+import io.fabric8.common.util.MultiException;
+import io.fabric8.common.util.Strings;
+import io.fabric8.service.VersionPropertyPointerResolver;
+import io.fabric8.utils.features.FeatureUtils;
+import org.apache.karaf.features.BundleInfo;
+import org.apache.karaf.features.Feature;
+import org.apache.karaf.features.Repository;
+import org.apache.karaf.features.internal.FeatureValidationUtil;
+import org.apache.karaf.features.internal.RepositoryImpl;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import static io.fabric8.utils.PatchUtils.extractUrl;
 
@@ -62,18 +65,54 @@ public class AgentUtils {
      * Returns the location and parser map (i.e. the location and the parsed maven coordinates and artifact locations) of each bundle and feature
      * of the given profile
      */
-    public static Map<String, Parser> getProfileArtifacts(DownloadManager downloadManager, Profile profile) throws Exception {
+    public static Map<String, Parser> getProfileArtifacts(FabricService fabricService, DownloadManager downloadManager, Profile profile) throws Exception {
+        return getProfileArtifacts(fabricService, downloadManager, profile, null);
+    }
+
+    public static Map<String, Parser> getProfileArtifacts(FabricService fabricService, DownloadManager downloadManager, Profile profile, Callback<String> callback) throws Exception {
         List<String> bundles = profile.getBundles();
         Set<Feature> features = new HashSet<Feature>();
-        addFeatures(features, downloadManager, profile);
-        return getProfileArtifacts(profile, bundles, features);
+        addFeatures(features, fabricService, downloadManager, profile);
+        return getProfileArtifacts(fabricService, profile, bundles, features, callback);
     }
 
 
     /**
      * Returns the location and parser map (i.e. the location and the parsed maven coordinates and artifact locations) of each bundle and feature
      */
-    public static Map<String, Parser> getProfileArtifacts(Profile profile, Iterable<String> bundles, Iterable<Feature> features) {
+    public static Map<String, Parser> getProfileArtifacts(FabricService fabricService, Profile profile, Iterable<String> bundles, Iterable<Feature> features) {
+        return getProfileArtifacts(fabricService, profile, bundles, features, null);
+    }
+
+    /**
+     * Waits for the download to complete returning the file or throwing an exception if it could not complete
+     */
+    public static File waitForFileDownload(DownloadFuture future) throws IOException {
+        File file = future.getFile();
+        while (file == null && !future.isDone() && !future.isCanceled()) {
+            try {
+                future.await();
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+            file = future.getFile();
+        }
+        return file;
+    }
+
+    public interface Callback<T> {
+
+        /**
+         * Callback when a non-maven based location is discovered
+         */
+        void call(T location);
+    }
+
+    /**
+     * Returns the location and parser map (i.e. the location and the parsed maven coordinates and artifact locations) of each bundle and feature
+     */
+    public static Map<String, Parser> getProfileArtifacts(FabricService fabricService, Profile profile, Iterable<String> bundles, Iterable<Feature> features,
+                                                          Callback<String> nonMavenLocationCallback) {
         Set<String> locations = new HashSet<String>();
         for (Feature feature : features) {
             List<BundleInfo> bundleList = feature.getBundles();
@@ -92,12 +131,17 @@ public class AgentUtils {
         for (String location : locations) {
             try {
                 if (location.contains("$")) {
-                    location = VersionPropertyPointerResolver.replaceVersions(profile.getOverlay().getConfigurations(), location);
+                    location = VersionPropertyPointerResolver.replaceVersions(fabricService, profile.getOverlay().getConfigurations(), location);
                 }
-                // lets trim the "mvn:" prefix
-                Parser parser = new Parser(location.substring(4));
-                artifacts.put(location, parser);
+                if (location.startsWith("mvn:") || location.contains(":mvn:")) {
+                    Parser parser = Parser.parsePathWithSchemePrefix(location);
+                    artifacts.put(location, parser);
+                } else {
+                    if (nonMavenLocationCallback != null) {
+                        nonMavenLocationCallback.call(location);
+                    }
 
+                }
             } catch (MalformedURLException e) {
                 LOGGER.error("Failed to parse bundle URL: " + location + ". " + e, e);
             }
@@ -124,12 +168,14 @@ public class AgentUtils {
     /**
      * Extracts the {@link java.net.URI}/{@link org.apache.karaf.features.Repository} map from the profile.
      *
-     * @param profile
+     *
+     * @param fabricService
      * @param downloadManager
+     * @param profile
      * @return
      * @throws java.net.URISyntaxException
      */
-    protected static Map<URI, Repository> getRepositories(DownloadManager downloadManager, Profile profile) throws Exception {
+    protected static Map<URI, Repository> getRepositories(FabricService fabricService, DownloadManager downloadManager, Profile profile) throws Exception {
         Map<URI, Repository> repositories = new HashMap<URI, Repository>();
         for (String repositoryUrl : profile.getRepositories()) {
             if (Strings.isNotBlank(repositoryUrl)) {
@@ -137,7 +183,7 @@ public class AgentUtils {
                     // lets replace any version expressions
                     String replacedUrl = repositoryUrl;
                     if (repositoryUrl.contains("$")) {
-                        replacedUrl = VersionPropertyPointerResolver.replaceVersions(profile.getConfigurations(), repositoryUrl);
+                        replacedUrl = VersionPropertyPointerResolver.replaceVersions(fabricService, profile.getConfigurations(), repositoryUrl);
                     }
                     URI repoUri = new URI(replacedUrl);
                     addRepository(downloadManager, repositories, repoUri);
@@ -153,13 +199,13 @@ public class AgentUtils {
      * Adds the set of features to the given set for the given profile
      *
      * @param features
-     * @param downloadManager
-     * @param profile
-     * @throws Exception
+     * @param fabricService
+     *@param downloadManager
+     * @param profile   @throws Exception
      */
-    public static void addFeatures(Set<Feature> features, DownloadManager downloadManager, Profile profile) throws Exception {
+    public static void addFeatures(Set<Feature> features, FabricService fabricService, DownloadManager downloadManager, Profile profile) throws Exception {
         List<String> featureNames = profile.getFeatures();
-        Map<URI, Repository> repositories = getRepositories(downloadManager, profile);
+        Map<URI, Repository> repositories = getRepositories(fabricService, downloadManager, profile);
         for (String featureName : featureNames) {
             Feature feature = FeatureUtils.search(featureName, repositories.values());
             if (feature == null) {
@@ -167,9 +213,19 @@ public class AgentUtils {
                         + " for profile " + profile.getId()
                         + " in repositories " + repositories.keySet());
             } else {
-                features.add(feature);
+                features.addAll(expandFeature(feature, repositories));
             }
         }
+    }
+
+    public static Set<Feature> expandFeature(Feature feature, Map<URI, Repository> repositories) {
+        Set<Feature> features = new HashSet<Feature>();
+        for (Feature f : feature.getDependencies()) {
+            Feature loaded = FeatureUtils.search(f.getName(), repositories.values());
+            features.addAll(expandFeature(loaded, repositories));
+        }
+        features.add(feature);
+        return features;
     }
 
     public static Map<String, Repository> loadRepositories(DownloadManager manager, Set<String> uris) throws Exception {
@@ -178,7 +234,17 @@ public class AgentUtils {
         return downloader.await();
     }
 
-    public static Map<String, File> downloadBundles(DownloadManager manager, Set<Feature> features, Set<String> bundles, Set<String> overrides) throws Exception {
+    /**
+     * Downloads all the bundles and features for the given profile
+     */
+    public static Map<String, File> downloadProfileArtifacts(FabricService fabricService, DownloadManager downloadManager, Profile profile) throws Exception {
+        List<String> bundles = profile.getBundles();
+        Set<Feature> features = new HashSet<Feature>();
+        addFeatures(features, fabricService, downloadManager, profile);
+        return downloadBundles(downloadManager, features, bundles, Collections.EMPTY_SET);
+    }
+
+    public static Map<String, File> downloadBundles(DownloadManager manager, Iterable<Feature> features, Iterable<String> bundles, Set<String> overrides) throws Exception {
         Set<String> locations = new HashSet<String>();
         for (Feature feature : features) {
             for (BundleInfo bundle : feature.getBundles()) {
@@ -191,6 +257,10 @@ public class AgentUtils {
         for (String override : overrides) {
             locations.add(extractUrl(override));
         }
+        return downloadLocations(manager, locations);
+    }
+
+    public static Map<String, File> downloadLocations(DownloadManager manager, Collection<String> locations) throws MalformedURLException, InterruptedException, MultiException {
         FileDownloader downloader = new FileDownloader(manager);
         downloader.download(locations);
         return downloader.await();
@@ -283,10 +353,12 @@ public class AgentUtils {
                 try {
                     String url = future.getUrl();
                     File file = future.getFile();
-                    T t = getArtifact(url, file);
-                    artifacts.put(url, t);
-                    if (callback != null) {
-                        callback.downloaded(file);
+                    if (file != null) {
+                        T t = getArtifact(url, file);
+                        artifacts.put(url, t);
+                        if (callback != null) {
+                            callback.downloaded(file);
+                        }
                     }
                 } catch (Throwable t) {
                     errors.add(t);
@@ -311,7 +383,14 @@ public class AgentUtils {
                     lock.wait();
                 }
                 if (!errors.isEmpty()) {
-                    throw new MultiException("Error while downloading artifacts", errors);
+                    StringWriter sw = new StringWriter();
+                    int nr = 1;
+                    int pad = Integer.toString(errors.size()).length();
+                    for (Throwable t : errors) {
+                        sw.append(String.format("%n\t%0" + pad + "d: %s", nr++, t.getMessage()));
+                    }
+                    LOGGER.error("Summary of errors while downloading artifacts:" + sw.toString());
+                    throw new MultiException(String.format("Error%s while downloading artifacts:%s", errors.size() == 1 ? "" : "s", sw.toString()), errors);
                 }
                 return artifacts;
             }

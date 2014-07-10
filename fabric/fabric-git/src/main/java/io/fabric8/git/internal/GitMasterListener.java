@@ -1,25 +1,42 @@
+/**
+ *  Copyright 2005-2014 Red Hat, Inc.
+ *
+ *  Red Hat licenses this file to you under the Apache License, version
+ *  2.0 (the "License"); you may not use this file except in compliance
+ *  with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or
+ *  implied.  See the License for the specific language governing
+ *  permissions and limitations under the License.
+ */
 package io.fabric8.git.internal;
 
-import org.apache.curator.framework.CuratorFramework;
-import org.apache.felix.scr.annotations.Activate;
-import org.apache.felix.scr.annotations.Component;
-import org.apache.felix.scr.annotations.Deactivate;
-import org.apache.felix.scr.annotations.Reference;
+import java.io.IOException;
+import java.net.URL;
+
 import io.fabric8.api.ContainerRegistration;
 import io.fabric8.api.jcip.ThreadSafe;
 import io.fabric8.api.scr.AbstractComponent;
 import io.fabric8.api.scr.ValidatingReference;
+import io.fabric8.common.util.Closeables;
+import io.fabric8.common.util.Strings;
 import io.fabric8.git.GitNode;
 import io.fabric8.git.GitService;
 import io.fabric8.groups.Group;
 import io.fabric8.groups.GroupListener;
 import io.fabric8.groups.internal.ZooKeeperGroup;
-import io.fabric8.utils.Closeables;
 import io.fabric8.zookeeper.ZkPath;
+import org.apache.curator.framework.CuratorFramework;
+import org.apache.felix.scr.annotations.Activate;
+import org.apache.felix.scr.annotations.Component;
+import org.apache.felix.scr.annotations.Deactivate;
+import org.apache.felix.scr.annotations.Reference;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import java.io.IOException;
 
 import static io.fabric8.zookeeper.utils.ZooKeeperUtils.getSubstitutedData;
 
@@ -75,7 +92,13 @@ public final class GitMasterListener extends AbstractComponent implements GroupL
         try {
             if (masterUrl != null) {
                 GitService gitservice = gitService.get();
-                gitservice.notifyRemoteChanged(getSubstitutedData(curator.get(), masterUrl));
+                String substitutedUrl = getSubstitutedData(curator.get(), masterUrl);
+                if (!Strings.isNotBlank(substitutedUrl)) {
+                    LOGGER.warn("Could not render git master URL {}.", masterUrl);
+                }
+                //Catch any possible issue indicating that the URL is invalid.
+                URL url = new URL(substitutedUrl);
+                gitservice.notifyRemoteChanged(substitutedUrl);
             }
         } catch (Exception e) {
             LOGGER.error("Failed to point origin to the new master.", e);

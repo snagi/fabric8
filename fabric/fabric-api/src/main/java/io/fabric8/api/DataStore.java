@@ -1,18 +1,17 @@
 /**
- * Copyright (C) FuseSource, Inc.
- * http://fusesource.com
+ *  Copyright 2005-2014 Red Hat, Inc.
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ *  Red Hat licenses this file to you under the Apache License, version
+ *  2.0 (the "License"); you may not use this file except in compliance
+ *  with the License.  You may obtain a copy of the License at
  *
- *    http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or
+ *  implied.  See the License for the specific language governing
+ *  permissions and limitations under the License.
  */
 package io.fabric8.api;
 
@@ -22,7 +21,6 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * @author Stan Lewis
  */
 public interface DataStore {
 
@@ -30,6 +28,11 @@ public interface DataStore {
 
     public static final String DATASTORE_TYPE_PROPERTY = "type";
     public static final String DEFAULT_DATASTORE_TYPE = "caching-git";
+
+    /**
+     * Gets the fabric release version, eg such as 1.1.0
+     */
+    String getFabricReleaseVersion();
 
     /**
      * Return the DataStore type.
@@ -81,6 +84,8 @@ public interface DataStore {
 
     boolean isContainerAlive(String id);
 
+    void setContainerAlive(String id, boolean flag);
+
 
     public enum ContainerAttribute {
         BlueprintStatus,
@@ -89,6 +94,7 @@ public interface DataStore {
         ProvisionException,
         ProvisionList,
         ProvisionChecksums,
+        DebugPort,
         Location,
         GeoLocation,
         Resolver,
@@ -148,6 +154,16 @@ public interface DataStore {
 
     boolean hasProfile(String version, String profile);
 
+    /**
+     * Imports one or more profile zips into the given version
+     */
+    void importProfiles(String version, List<String> profileZipUrls);
+
+    /**
+     * Exports profiles from the given version to the outputZipFileName which match the given wildcard
+     */
+    void exportProfiles(String version, String outputFileName, String wildcard);
+
     void createProfile(String version, String profile);
 
     String getProfile(String version, String profile, boolean create);
@@ -193,7 +209,7 @@ public interface DataStore {
 
     void setConfiguration(String version, String profile, String pid, Map<String, String> configuration);
 
-    void substituteConfigurations(Map<String, Map<String, String>> configurations);
+    void setConfigurationFile(String version, String id, String fileName, byte[] data);
 
     //
     // Global information storage

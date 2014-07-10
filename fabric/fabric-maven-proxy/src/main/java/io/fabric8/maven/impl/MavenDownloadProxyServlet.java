@@ -1,29 +1,20 @@
-/*
- * Copyright (C) FuseSource, Inc.
- *   http://fusesource.com
+/**
+ *  Copyright 2005-2014 Red Hat, Inc.
  *
- *   Licensed under the Apache License, Version 2.0 (the "License");
- *   you may not use this file except in compliance with the License.
- *   You may obtain a copy of the License at
+ *  Red Hat licenses this file to you under the Apache License, version
+ *  2.0 (the "License"); you may not use this file except in compliance
+ *  with the License.  You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
- *   Unless required by applicable law or agreed to in writing, software
- *   distributed under the License is distributed on an "AS IS" BASIS,
- *   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- *   See the License for the specific language governing permissions and
- *   limitations under the License.
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or
+ *  implied.  See the License for the specific language governing
+ *  permissions and limitations under the License.
  */
-
 package io.fabric8.maven.impl;
 
-import io.fabric8.internal.FabricConstants;
-import io.fabric8.utils.Closeables;
-import io.fabric8.utils.Files;
-
-import javax.servlet.ServletException;
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
 import java.io.BufferedInputStream;
 import java.io.File;
 import java.io.FileInputStream;
@@ -39,16 +30,26 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.FutureTask;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.logging.Level;
+import javax.servlet.ServletException;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
+
+import io.fabric8.api.FabricConstants;
+import io.fabric8.api.RuntimeProperties;
+import io.fabric8.common.util.Closeables;
+import io.fabric8.common.util.Files;
 
 
 public class MavenDownloadProxyServlet extends MavenProxyServletSupport {
 
-    private ConcurrentMap<String, ArtifactDownloadFuture> requestMap = new ConcurrentHashMap<String, ArtifactDownloadFuture>();
-    private ExecutorService executorService = Executors.newCachedThreadPool();
+    private final RuntimeProperties runtimeProperties;
+    private final ConcurrentMap<String, ArtifactDownloadFuture> requestMap = new ConcurrentHashMap<String, ArtifactDownloadFuture>();
+    private final ExecutorService executorService = Executors.newCachedThreadPool();
 
 
-    public MavenDownloadProxyServlet(String localRepository, List<String> remoteRepositories, boolean appendSystemRepos, String updatePolicy, String checksumPolicy, String proxyProtocol, String proxyHost, int proxyPort, String proxyUsername, String proxyPassword, String proxyNonProxyHosts) {
+    public MavenDownloadProxyServlet(RuntimeProperties runtimeProperties, String localRepository, List<String> remoteRepositories, boolean appendSystemRepos, String updatePolicy, String checksumPolicy, String proxyProtocol, String proxyHost, int proxyPort, String proxyUsername, String proxyPassword, String proxyNonProxyHosts) {
         super(localRepository, remoteRepositories, appendSystemRepos, updatePolicy, checksumPolicy, proxyProtocol, proxyHost, proxyPort, proxyUsername, proxyPassword, proxyNonProxyHosts);
+        this.runtimeProperties = runtimeProperties;
     }
 
     @Override
@@ -151,7 +152,7 @@ public class MavenDownloadProxyServlet extends MavenProxyServletSupport {
         public File call() throws Exception {
             File download = download(path);
             if (download != null)  {
-            File tmpFile = Files.createTempFile();
+            File tmpFile = io.fabric8.utils.Files.createTempFile(runtimeProperties.getDataPath());
             Files.copy(download, tmpFile);
             return tmpFile;
             } else {

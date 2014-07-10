@@ -1,21 +1,21 @@
 /**
- * Copyright (C) FuseSource, Inc.
- * http://fusesource.com
+ *  Copyright 2005-2014 Red Hat, Inc.
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ *  Red Hat licenses this file to you under the Apache License, version
+ *  2.0 (the "License"); you may not use this file except in compliance
+ *  with the License.  You may obtain a copy of the License at
  *
- *    http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or
+ *  implied.  See the License for the specific language governing
+ *  permissions and limitations under the License.
  */
 package io.fabric8.extender.listener;
 
+import io.fabric8.api.RuntimeProperties;
 import io.fabric8.api.scr.Configurer;
 import org.apache.curator.framework.CuratorFramework;
 import org.apache.felix.scr.annotations.Activate;
@@ -39,20 +39,21 @@ import static io.fabric8.zookeeper.utils.ZooKeeperUtils.setData;
 @Component(name = "io.fabric8.extender.listener.blueprint", label = "Fabric8 Blueprint Listener", immediate = true, metatype = false)
 @Service(BlueprintListener.class)
 @References({
-    @Reference(referenceInterface = CuratorFramework.class, bind = "bindCurator", unbind = "unbindCurator")
+    @Reference(referenceInterface = CuratorFramework.class, bind = "bindCurator", unbind = "unbindCurator"),
+    @Reference(referenceInterface = RuntimeProperties.class, bind = "bindRuntimeProperties", unbind = "unbindRuntimeProperties")
+
 })
 public final class FabricBlueprintBundleListener extends AbstractExtenderListener implements BlueprintListener {
 
     @Reference
     private Configurer configurer;
-    @Property(name = "name", label = "Container Name", description = "The name of the container", value = "${karaf.name}", propertyPrivate = true)
-    private String name;
 
     private static final String EXTENDER_TYPE = "blueprint";
 
     @Activate
     void activate(BundleContext bundleContext, Map<String,?> configuration) throws Exception {
         configurer.configure(configuration, this);
+        runtimeIdentity = runtimeProperties.get().getRuntimeIdentity();
         super.activate(bundleContext);
     }
 

@@ -1,19 +1,18 @@
 /**
- * Copyright 2012 Red Hat, Inc. and/or its affiliates.
+ *  Copyright 2005-2014 Red Hat, Inc.
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ *  Red Hat licenses this file to you under the Apache License, version
+ *  2.0 (the "License"); you may not use this file except in compliance
+ *  with the License.  You may obtain a copy of the License at
  *
- *    http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or
+ *  implied.  See the License for the specific language governing
+ *  permissions and limitations under the License.
  */
-
 package io.fabric8.service;
 
 import com.google.common.collect.Maps;
@@ -264,7 +263,7 @@ public class ContainerImplTest {
         expect(dataStore.getConfigurations(eq(v), eq(camelProfile))).andReturn(camelPids).anyTimes();
         expect(dataStore.getConfigurations(eq(v), eq(cxfProfile))).andReturn(cxfPids).anyTimes();
 
-        dataStore.substituteConfigurations((Map<String, Map<String, String>>) anyObject());
+        fabricService.substituteConfigurations((Map<String, Map<String, String>>) anyObject());
         expectLastCall().anyTimes();
         expect(dataStore.getContainerVersion(eq(CONTAINER_ID))).andReturn(v).anyTimes();
         expect(dataStore.getContainerProfiles(eq(CONTAINER_ID))).andReturn(profiles).anyTimes();

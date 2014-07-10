@@ -1,20 +1,18 @@
-/*
- * Copyright (C) FuseSource, Inc.
- *   http://fusesource.com
+/**
+ *  Copyright 2005-2014 Red Hat, Inc.
  *
- *   Licensed under the Apache License, Version 2.0 (the "License");
- *   you may not use this file except in compliance with the License.
- *   You may obtain a copy of the License at
+ *  Red Hat licenses this file to you under the Apache License, version
+ *  2.0 (the "License"); you may not use this file except in compliance
+ *  with the License.  You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
- *   Unless required by applicable law or agreed to in writing, software
- *   distributed under the License is distributed on an "AS IS" BASIS,
- *   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- *   See the License for the specific language governing permissions and
- *   limitations under the License.
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or
+ *  implied.  See the License for the specific language governing
+ *  permissions and limitations under the License.
  */
-
 package io.fabric8.git.http;
 
 import org.apache.curator.framework.CuratorFramework;
@@ -39,7 +37,6 @@ import io.fabric8.zookeeper.utils.ZooKeeperUtils;
 import io.fabric8.api.TargetContainer;
 import io.fabric8.api.RuntimeProperties;
 import io.fabric8.utils.SystemProperties;
-import org.eclipse.jgit.http.server.GitServlet;
 import org.osgi.service.cm.Configuration;
 import org.osgi.service.cm.ConfigurationAdmin;
 import org.osgi.service.http.HttpContext;
@@ -48,12 +45,12 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.File;
+import java.nio.file.Path;
 import java.util.Collections;
 import java.util.Dictionary;
 import java.util.HashMap;
 import java.util.Hashtable;
 import java.util.Map;
-
 
 @ThreadSafe
 @Component(name = "io.fabric8.git.server", label = "Fabric8 Git HTTP Server Registration Handler", policy = ConfigurationPolicy.OPTIONAL, immediate = true, metatype = true)
@@ -169,13 +166,16 @@ public final class GitHttpServerRegistrationHandler extends AbstractComponent im
     }
 
     private void registerServlet(RuntimeProperties sysprops, String realm, String role) {
-        String servletBasePath = sysprops.getProperty(SystemProperties.KARAF_DATA) + File.separator + "git" + File.separator + "servlet" + File.separator;
-        String fabricRepoPath = servletBasePath + "fabric";
+        Path basePath = sysprops.getDataPath().resolve("git").resolve("servlet");
+        Path fabricRepoPath = basePath.resolve("fabric");
+        String servletBase = basePath.toFile().getAbsolutePath();
+
         try {
             HttpContext base = httpService.get().createDefaultHttpContext();
-            HttpContext secure = new GitSecureHttpContext(base, realm, role);
+            HttpContext secure = new GitSecureHttpContext(base, curator.get(), realm, role);
 
-            File fabricRoot = new File(fabricRepoPath);
+            File fabricRoot = fabricRepoPath.toFile();
+
 
             //Only need to clone once. If repo already exists, just skip.
             if (!fabricRoot.exists()) {
@@ -191,10 +191,10 @@ public final class GitHttpServerRegistrationHandler extends AbstractComponent im
             }
 
             Dictionary<String, Object> initParams = new Hashtable<String, Object>();
-            initParams.put("base-path", servletBasePath);
-            initParams.put("repository-root", servletBasePath);
+            initParams.put("base-path", servletBase);
+            initParams.put("repository-root", servletBase);
             initParams.put("export-all", "true");
-            httpService.get().registerServlet("/git", new GitServlet(), initParams, secure);
+            httpService.get().registerServlet("/git", new FabricGitServlet(curator.get()), initParams, secure);
         } catch (Throwable t) {
             throw FabricException.launderThrowable(t);
         }
@@ -228,13 +228,12 @@ public final class GitHttpServerRegistrationHandler extends AbstractComponent im
 
     private GitNode createState() {
         RuntimeProperties sysprops = runtimeProperties.get();
-        TargetContainer runtimeType = TargetContainer.getTargetContainer(sysprops);
-        String context = runtimeType == TargetContainer.KARAF ? "" : "/fabric";
-        String karafName = sysprops.getProperty(SystemProperties.KARAF_NAME);
-        String fabricRepoUrl = "${zk:" + karafName + "/http}" + context + "/git/fabric/";
-        GitNode state = new GitNode();
-        state.setId("fabric-repo");
+        String runtimeIdentity = sysprops.getRuntimeIdentity();
+        GitNode state = new GitNode("fabric-repo", runtimeIdentity);
         if (group != null && group.isMaster()) {
+            TargetContainer runtimeType = TargetContainer.getTargetContainer(sysprops);
+            String context = runtimeType == TargetContainer.KARAF ? "" : "/fabric";
+            String fabricRepoUrl = "${zk:" + runtimeIdentity + "/http}" + context + "/git/fabric/";
             state.setUrl(fabricRepoUrl);
         }
         return state;

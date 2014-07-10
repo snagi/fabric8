@@ -1,5 +1,5 @@
-/*
- * Copyright 2010 Red Hat, Inc.
+/**
+ *  Copyright 2005-2014 Red Hat, Inc.
  *
  *  Red Hat licenses this file to you under the Apache License, version
  *  2.0 (the "License"); you may not use this file except in compliance
@@ -13,9 +13,9 @@
  *  implied.  See the License for the specific language governing
  *  permissions and limitations under the License.
  */
-
 package io.fabric8.partition.internal;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.LinkedHashMultimap;
 import com.google.common.collect.Multimap;
 
@@ -27,7 +27,6 @@ import org.apache.felix.scr.annotations.Deactivate;
 import org.apache.felix.scr.annotations.Property;
 import org.apache.felix.scr.annotations.Reference;
 import org.apache.felix.scr.annotations.Service;
-import org.codehaus.jackson.map.ObjectMapper;
 import io.fabric8.api.jcip.ThreadSafe;
 import io.fabric8.api.scr.AbstractComponent;
 import io.fabric8.api.scr.ValidatingReference;

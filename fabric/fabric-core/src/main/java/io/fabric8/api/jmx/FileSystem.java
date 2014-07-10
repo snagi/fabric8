@@ -1,18 +1,17 @@
 /**
- * Copyright (C) FuseSource, Inc.
- * http://fusesource.com
+ *  Copyright 2005-2014 Red Hat, Inc.
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ *  Red Hat licenses this file to you under the Apache License, version
+ *  2.0 (the "License"); you may not use this file except in compliance
+ *  with the License.  You may obtain a copy of the License at
  *
- *    http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or
+ *  implied.  See the License for the specific language governing
+ *  permissions and limitations under the License.
  */
 package io.fabric8.api.jmx;
 
@@ -24,6 +23,7 @@ import javax.management.MalformedObjectNameException;
 import javax.management.ObjectName;
 
 import io.fabric8.api.RuntimeProperties;
+import io.fabric8.common.util.ShutdownTracker;
 import io.fabric8.utils.SystemProperties;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -39,7 +39,7 @@ public class FileSystem implements FileSystemMBean {
     private final String path;
 
     public FileSystem(RuntimeProperties sysprops) {
-        fs = new File(sysprops.getProperty(SystemProperties.KARAF_DATA, "karaf-data"));
+        fs = sysprops.getDataPath().toFile();;
         String path;
         try {
             path = fs.getCanonicalPath();
@@ -89,11 +89,11 @@ public class FileSystem implements FileSystemMBean {
         this.objectName = objectName;
     }
 
-    public void registerMBeanServer(MBeanServer mbeanServer) {
+    public void registerMBeanServer(ShutdownTracker shutdownTracker, MBeanServer mbeanServer) {
         try {
             ObjectName name = getObjectName();
             if (!mbeanServer.isRegistered(name)) {
-                mbeanServer.registerMBean(this, name);
+                mbeanServer.registerMBean(shutdownTracker.mbeanProxy(this), name);
             }
         } catch (Exception e) {
             LOG.warn("An error occured during mbean server registration: " + e, e);

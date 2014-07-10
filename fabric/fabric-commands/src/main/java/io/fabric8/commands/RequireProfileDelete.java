@@ -1,35 +1,81 @@
-/*
- * Copyright (C) FuseSource, Inc.
- *   http://fusesource.com
+/**
+ *  Copyright 2005-2014 Red Hat, Inc.
  *
- *   Licensed under the Apache License, Version 2.0 (the "License");
- *   you may not use this file except in compliance with the License.
- *   You may obtain a copy of the License at
+ *  Red Hat licenses this file to you under the Apache License, version
+ *  2.0 (the "License"); you may not use this file except in compliance
+ *  with the License.  You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
- *   Unless required by applicable law or agreed to in writing, software
- *   distributed under the License is distributed on an "AS IS" BASIS,
- *   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- *   See the License for the specific language governing permissions and
- *   limitations under the License.
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or
+ *  implied.  See the License for the specific language governing
+ *  permissions and limitations under the License.
  */
 package io.fabric8.commands;
 
-import org.apache.felix.gogo.commands.Argument;
-import org.apache.felix.gogo.commands.Command;
-import io.fabric8.api.FabricRequirements;
-import io.fabric8.commands.support.ChangeRequirementSupport;
+import io.fabric8.api.FabricService;
+import io.fabric8.api.scr.ValidatingReference;
+import io.fabric8.boot.commands.support.AbstractCommandComponent;
+import io.fabric8.boot.commands.support.ProfileCompleter;
+import org.apache.felix.gogo.commands.Action;
+import org.apache.felix.gogo.commands.basic.AbstractCommand;
+import org.apache.felix.scr.annotations.Activate;
+import org.apache.felix.scr.annotations.Component;
+import org.apache.felix.scr.annotations.Deactivate;
+import org.apache.felix.scr.annotations.Property;
+import org.apache.felix.scr.annotations.Reference;
+import org.apache.felix.scr.annotations.Service;
+import org.apache.felix.service.command.Function;
 
-@Command(name = "require-profile-delete", scope = "fabric", description = "Deletes the requirements for a profile", detailedDescription = "classpath:status.txt")
-public class RequireProfileDelete extends ChangeRequirementSupport {
+@Component(immediate = true)
+@Service({ Function.class, AbstractCommand.class })
+@org.apache.felix.scr.annotations.Properties({
+    @Property(name = "osgi.command.scope", value = RequireProfileDelete.SCOPE_VALUE),
+    @Property(name = "osgi.command.function", value = RequireProfileDelete.FUNCTION_VALUE)
+})
+public class RequireProfileDelete extends AbstractCommandComponent {
 
-    @Argument(index = 0, required = true, description = "Profile ID")
-    protected String profile;
+    public static final String SCOPE_VALUE = "fabric";
+    public static final String FUNCTION_VALUE = "require-profile-delete";
+    public static final String DESCRIPTION = "Deletes the requirements for a profile";
+
+    @Reference(referenceInterface = FabricService.class)
+    private final ValidatingReference<FabricService> fabricService = new ValidatingReference<FabricService>();
+    @Reference(referenceInterface = ProfileCompleter.class, bind = "bindProfileCompleter", unbind = "unbindProfileCompleter")
+    private ProfileCompleter profileCompleter; // dummy field
+
+    @Activate
+    void activate() {
+        activateComponent();
+    }
+
+    @Deactivate
+    void deactivate() {
+        deactivateComponent();
+    }
 
     @Override
-    protected boolean updateRequirements(FabricRequirements requirements) {
-        requirements.removeProfileRequirements(profile);
-        return true;
+    public Action createNewAction() {
+        assertValid();
+        return new RequireProfileDeleteAction(fabricService.get());
     }
+
+    void bindFabricService(FabricService fabricService) {
+        this.fabricService.bind(fabricService);
+    }
+
+    void unbindFabricService(FabricService fabricService) {
+        this.fabricService.unbind(fabricService);
+    }
+
+    void bindProfileCompleter(ProfileCompleter completer) {
+        bindCompleter(completer);
+    }
+
+    void unbindProfileCompleter(ProfileCompleter completer) {
+        unbindCompleter(completer);
+    }
+
 }

@@ -1,31 +1,27 @@
 /**
- * Copyright (C) FuseSource, Inc.
- * http://fusesource.com
+ *  Copyright 2005-2014 Red Hat, Inc.
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ *  Red Hat licenses this file to you under the Apache License, version
+ *  2.0 (the "License"); you may not use this file except in compliance
+ *  with the License.  You may obtain a copy of the License at
  *
- *    http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or
+ *  implied.  See the License for the specific language governing
+ *  permissions and limitations under the License.
  */
 package io.fabric8.agent.mvn;
 
-import io.fabric8.utils.NullArgumentException;
+import io.fabric8.common.util.NullArgumentException;
 
 /**
  * Represents a version range as the OSGi version range but without the contraints related to number of segments of that
  * each segment must be a number.
  * The range consist of two versions separated by "," (comma) that starts and ends with "[" for inclusive match or "("
  * for exclusive match and ends with "]" for inclusive match or ")" for exclusive match
- *
- * @author Alin Dreghiciu
- * @since 0.2.0, January 30, 2008
  */
 public class VersionRange {
 
@@ -54,7 +50,7 @@ public class VersionRange {
      * Creates a new version range form a string.
      *
      * @param range version range
-     * @throws io.fabric8.utils.NullArgumentException
+     * @throws io.fabric8.common.util.NullArgumentException
      *                                  if range is empty or null
      * @throws IllegalArgumentException if the version does not comply to specs
      */

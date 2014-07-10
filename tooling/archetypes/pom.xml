@@ -1,56 +1,84 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!--
-  Copyright (C) FuseSource, Inc.
-    http://fusesource.com
 
-    Licensed under the Apache License, Version 2.0 (the "License");
-    you may not use this file except in compliance with the License.
-    You may obtain a copy of the License at
+     Copyright 2005-2014 Red Hat, Inc.
 
-       http://www.apache.org/licenses/LICENSE-2.0
+     Red Hat licenses this file to you under the Apache License, version
+     2.0 (the "License"); you may not use this file except in compliance
+     with the License.  You may obtain a copy of the License at
 
-    Unless required by applicable law or agreed to in writing, software
-    distributed under the License is distributed on an "AS IS" BASIS,
-    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-    See the License for the specific language governing permissions and
-    limitations under the License.
-  -->
+        http://www.apache.org/licenses/LICENSE-2.0
 
+     Unless required by applicable law or agreed to in writing, software
+     distributed under the License is distributed on an "AS IS" BASIS,
+     WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or
+     implied.  See the License for the specific language governing
+     permissions and limitations under the License.
+
+-->
 <project xmlns="http://maven.apache.org/POM/4.0.0"
          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <parent>
-        <groupId>org.fusesource</groupId>
+        <groupId>io.fabric8</groupId>
         <artifactId>tooling</artifactId>
-        <version>1.0.0-SNAPSHOT</version>
+        <version>1.1.0-SNAPSHOT</version>
     </parent>
     <modelVersion>4.0.0</modelVersion>
 
-    <groupId>io.fabric8</groupId>
+    <groupId>io.fabric8.archetypes</groupId>
     <artifactId>archetypes</artifactId>
     <packaging>pom</packaging>
     
     <name>Fabric8 :: Archetypes :: Parent</name>
 
+    <dependencies>
+      <dependency>
+        <groupId>io.fabric8</groupId>
+        <artifactId>archetype-builder</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+    </dependencies>
+
+    <build>
+      <pluginManagement>
+        <plugins>
+          <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-archetype-plugin</artifactId>
+            <version>2.2</version>
+          </plugin>
+        </plugins>
+      </pluginManagement>
+    </build>
+
     <profiles>
         <profile>
             <id>all</id>
             <modules>
-                <module>camel-cxf-code-first-archetype</module>
-                <module>camel-cxf-contract-first-archetype</module>
-                <module>camel-drools-archetype</module>
-                <module>camel-webservice-archetype</module>
-                <module>camel-web-osgi-archetype</module>
-                <module>cbr-archetype</module>
-                <module>eip-archetype</module>
-                <module>errors-archetype</module>
-                <module>jms-archetype</module>
-                <module>rest-archetype</module>
-                <module>secure-rest-archetype</module>
-                <module>secure-soap-archetype</module>
-                <module>soap-archetype</module>
+              <module>java-camel-cdi-archetype</module>
+              <module>java-camel-spring-archetype</module>
+              <module>karaf-camel-amq-archetype</module>
+              <module>karaf-camel-dozer-wiki-archetype</module>
+              <module>karaf-camel-drools-archetype</module>
+              <module>karaf-camel-cbr-archetype</module>
+              <module>karaf-camel-eips-archetype</module>
+              <module>karaf-camel-errorhandler-archetype</module>
+              <module>karaf-camel-log-archetype</module>
+              <module>karaf-camel-log-wiki-archetype</module>
+              <module>karaf-camel-cxf-code-first-archetype</module>
+              <module>karaf-camel-cxf-contract-first-archetype</module>
+              <module>karaf-camel-webservice-archetype</module>
+              <module>karaf-rest-archetype</module>
+              <module>karaf-secure-rest-archetype</module>
+              <module>karaf-secure-soap-archetype</module>
+              <module>karaf-soap-archetype</module>
+              <module>springboot-activemq-archetype</module>
+              <module>springboot-camel-archetype</module>
+              <module>springboot-webmvc-archetype</module>
+              <module>war-camel-servlet-archetype</module>
+              <module>war-rest-archetype</module>
             </modules>
-
             <build>
               <pluginManagement>
                 <plugins>
@@ -61,16 +89,6 @@
                 </plugins>
               </pluginManagement>
             </build>
-        </profile>
-        <profile>
-            <id>esb</id>
-            <modules>
-            </modules>
-        </profile>
-        <profile>
-            <id>amq</id>
-            <modules>
-            </modules>
         </profile>
     </profiles>
 

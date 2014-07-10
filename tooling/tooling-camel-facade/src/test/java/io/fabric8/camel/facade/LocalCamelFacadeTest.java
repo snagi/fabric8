@@ -1,5 +1,5 @@
-/*
- * Copyright 2010 Red Hat, Inc.
+/**
+ *  Copyright 2005-2014 Red Hat, Inc.
  *
  *  Red Hat licenses this file to you under the Apache License, version
  *  2.0 (the "License"); you may not use this file except in compliance
@@ -191,11 +191,12 @@ public class LocalCamelFacadeTest extends CamelTestSupport {
                 + "</message>", browsable.browseMessageAsXml(0, true));
     }
 
+
     @Test
     public void testThreadPools() throws Exception {
         List<CamelThreadPoolMBean> pools = local.getThreadPools(context.getManagementName());
         assertNotNull(pools);
-        assertEquals(2, pools.size());
+        assertEquals(1, pools.size());
     }
 
     @Test

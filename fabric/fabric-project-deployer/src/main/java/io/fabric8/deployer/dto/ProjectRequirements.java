@@ -1,44 +1,45 @@
 /**
+ *  Copyright 2005-2014 Red Hat, Inc.
  *
- * Licensed to the Apache Software Foundation (ASF) under one or more
- * contributor license agreements.  See the NOTICE file distributed with
- * this work for additional information regarding copyright ownership.
- * The ASF licenses this file to You under the Apache License, Version 2.0
- * (the "License"); you may not use this file except in compliance with
- * the License.  You may obtain a copy of the License at
+ *  Red Hat licenses this file to you under the Apache License, version
+ *  2.0 (the "License"); you may not use this file except in compliance
+ *  with the License.  You may obtain a copy of the License at
  *
- * http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or
+ *  implied.  See the License for the specific language governing
+ *  permissions and limitations under the License.
  */
 package io.fabric8.deployer.dto;
 
-import org.codehaus.jackson.annotate.JsonIgnore;
-
 import java.util.List;
+
+import com.fasterxml.jackson.annotation.JsonIgnore;
 
 /**
  * Represents the project requirements and dependencies and how they should be mapped to a profile in fabric8
  */
 public class ProjectRequirements {
     private String profileId;
+    private boolean abstractProfile;
     private String version;
     private String baseVersion;
+    private String description;
     private List<String> parentProfiles;
     private List<String> features;
     private List<String> bundles;
     private List<String> featureRepositories;
+    private Integer minimumInstances;
+    private DependencyDTO rootDependency;
+    private String webContextPath;
 
     @Override
     public String toString() {
         return "ProjectRequirements{" + rootDependency + "}";
     }
-
-    private DependencyDTO rootDependency;
 
     public String getProfileId() {
         return profileId;
@@ -46,6 +47,14 @@ public class ProjectRequirements {
 
     public void setProfileId(String profileId) {
         this.profileId = profileId;
+    }
+
+    public boolean isAbstractProfile() {
+        return abstractProfile;
+    }
+
+    public void setAbstractProfile(boolean abstractProfile) {
+        this.abstractProfile = abstractProfile;
     }
 
     public String getVersion() {
@@ -88,6 +97,14 @@ public class ProjectRequirements {
         return rootDependency != null ? rootDependency.getArtifactId() : null;
     }
 
+    public String getDescription() {
+        return description;
+    }
+
+    public void setDescription(String description) {
+        this.description = description;
+    }
+
     public List<String> getParentProfiles() {
         return parentProfiles;
     }
@@ -118,5 +135,21 @@ public class ProjectRequirements {
 
     public void setBundles(List<String> bundles) {
         this.bundles = bundles;
+    }
+
+    public Integer getMinimumInstances() {
+        return minimumInstances;
+    }
+
+    public void setMinimumInstances(Integer minimumInstances) {
+        this.minimumInstances = minimumInstances;
+    }
+
+    public String getWebContextPath() {
+        return webContextPath;
+    }
+
+    public void setWebContextPath(String webContextPath) {
+        this.webContextPath = webContextPath;
     }
 }

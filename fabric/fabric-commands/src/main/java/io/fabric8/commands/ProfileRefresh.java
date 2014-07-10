@@ -1,50 +1,91 @@
 /**
- * Copyright (C) FuseSource, Inc.
- * http://fusesource.com
+ *  Copyright 2005-2014 Red Hat, Inc.
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ *  Red Hat licenses this file to you under the Apache License, version
+ *  2.0 (the "License"); you may not use this file except in compliance
+ *  with the License.  You may obtain a copy of the License at
  *
- *    http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or
+ *  implied.  See the License for the specific language governing
+ *  permissions and limitations under the License.
  */
 package io.fabric8.commands;
 
+import io.fabric8.api.FabricService;
+import io.fabric8.api.scr.ValidatingReference;
+import io.fabric8.boot.commands.support.AbstractCommandComponent;
+import io.fabric8.boot.commands.support.ProfileCompleter;
+import io.fabric8.boot.commands.support.VersionCompleter;
+import org.apache.felix.gogo.commands.Action;
+import org.apache.felix.gogo.commands.basic.AbstractCommand;
+import org.apache.felix.scr.annotations.Activate;
+import org.apache.felix.scr.annotations.Component;
+import org.apache.felix.scr.annotations.Deactivate;
+import org.apache.felix.scr.annotations.Property;
+import org.apache.felix.scr.annotations.Reference;
+import org.apache.felix.scr.annotations.Service;
+import org.apache.felix.service.command.Function;
 
-import org.apache.felix.gogo.commands.Argument;
-import org.apache.felix.gogo.commands.Command;
-import io.fabric8.api.Profile;
-import io.fabric8.api.Version;
-import io.fabric8.boot.commands.support.FabricCommand;
-import io.fabric8.zookeeper.ZkDefs;
+@Component(immediate = true)
+@Service({ Function.class, AbstractCommand.class })
+@org.apache.felix.scr.annotations.Properties({
+    @Property(name = "osgi.command.scope", value = ProfileRefresh.SCOPE_VALUE),
+    @Property(name = "osgi.command.function", value = ProfileRefresh.FUNCTION_VALUE)
+})
+public class ProfileRefresh extends AbstractCommandComponent {
 
-import static io.fabric8.utils.FabricValidations.validateProfileName;
+    public static final String SCOPE_VALUE = "fabric";
+    public static final String FUNCTION_VALUE = "profile-refresh";
+    public static final String DESCRIPTION = "Performs a change to the profile, that triggers the deployment agent. It's intended to be used for scanning for snapshot changes";
 
-@Command(name = "profile-refresh", scope = "fabric", description = "Performs a change to the profile, that triggers the deployment agent. It's intended to be used for scanning for snapshot changes", detailedDescription = "classpath:profileRefresh.txt")
-public class ProfileRefresh extends FabricCommand {
+    @Reference(referenceInterface = FabricService.class)
+    private final ValidatingReference<FabricService> fabricService = new ValidatingReference<FabricService>();
+    @Reference(referenceInterface = ProfileCompleter.class, bind = "bindProfileCompleter", unbind = "unbindProfileCompleter")
+    private ProfileCompleter profileCompleter; // dummy field
+    @Reference(referenceInterface = VersionCompleter.class, bind = "bindVersionCompleter", unbind = "unbindVersionCompleter")
+    private VersionCompleter versionCompleter; // dummy field
 
-	@Argument(index = 0, name = "profile", description = "The target profile to edit", required = true, multiValued = false)
-	private String profileName;
+    @Activate
+    void activate() {
+        activateComponent();
+    }
 
-	@Argument(index = 1, name = "version", description = "The version of the profile to edit. Defaults to the current default version.", required = false, multiValued = false)
-	private String versionName = ZkDefs.DEFAULT_VERSION;
+    @Deactivate
+    void deactivate() {
+        deactivateComponent();
+    }
 
-	@Override
-	protected Object doExecute() throws Exception {
-		checkFabricAvailable();
-        validateProfileName(profileName);
-		Version version = versionName != null ? fabricService.getVersion(versionName) : fabricService.getDefaultVersion();
-		Profile profile = version.getProfile(profileName);
-		if (profile == null) {
-			throw new IllegalArgumentException("No profile found with name:" + profileName + " and version:" + version.getId());
-		}
-        profile.refresh();
-		return null;
-	}
+    @Override
+    public Action createNewAction() {
+        assertValid();
+        return new ProfileRefreshAction(fabricService.get());
+    }
+
+    void bindFabricService(FabricService fabricService) {
+        this.fabricService.bind(fabricService);
+    }
+
+    void unbindFabricService(FabricService fabricService) {
+        this.fabricService.unbind(fabricService);
+    }
+
+    void bindProfileCompleter(ProfileCompleter completer) {
+        bindCompleter(completer);
+    }
+
+    void unbindProfileCompleter(ProfileCompleter completer) {
+        unbindCompleter(completer);
+    }
+
+    void bindVersionCompleter(VersionCompleter completer) {
+        bindCompleter(completer);
+    }
+
+    void unbindVersionCompleter(VersionCompleter completer) {
+        unbindCompleter(completer);
+    }
 }

@@ -1,45 +1,28 @@
 /**
- * Copyright (C) FuseSource, Inc.
- * http://fusesource.com
+ *  Copyright 2005-2014 Red Hat, Inc.
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ *  Red Hat licenses this file to you under the Apache License, version
+ *  2.0 (the "License"); you may not use this file except in compliance
+ *  with the License.  You may obtain a copy of the License at
  *
- *    http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or
+ *  implied.  See the License for the specific language governing
+ *  permissions and limitations under the License.
  */
 package io.fabric8.cxf.registry;
 
-import io.fabric8.api.Version;
-import io.fabric8.internal.JsonHelper;
-import org.apache.curator.framework.CuratorFramework;
-import org.apache.curator.framework.state.ConnectionState;
-import org.apache.curator.framework.state.ConnectionStateListener;
-import org.apache.felix.scr.annotations.Activate;
-import org.apache.felix.scr.annotations.Component;
-import org.apache.felix.scr.annotations.Deactivate;
-import org.apache.felix.scr.annotations.Reference;
-import org.apache.felix.scr.annotations.ReferenceCardinality;
-import org.apache.zookeeper.CreateMode;
-import io.fabric8.api.Container;
-import io.fabric8.api.FabricService;
-import io.fabric8.api.jcip.ThreadSafe;
-import io.fabric8.api.scr.AbstractComponent;
-import io.fabric8.api.scr.ValidatingReference;
-import io.fabric8.utils.Strings;
-import io.fabric8.zookeeper.ZkPath;
-import io.fabric8.zookeeper.utils.ZooKeeperUtils;
-import org.osgi.service.cm.Configuration;
-import org.osgi.service.cm.ConfigurationAdmin;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
+import java.io.IOException;
+import java.lang.management.ManagementFactory;
+import java.net.URISyntaxException;
+import java.util.ArrayList;
+import java.util.Dictionary;
+import java.util.List;
+import java.util.Set;
+import java.util.concurrent.ConcurrentSkipListSet;
 import javax.management.BadAttributeValueExpException;
 import javax.management.BadBinaryOpValueExpException;
 import javax.management.BadStringOperationException;
@@ -54,22 +37,36 @@ import javax.management.NotificationListener;
 import javax.management.ObjectInstance;
 import javax.management.ObjectName;
 import javax.management.QueryExp;
-import java.io.IOException;
-import java.lang.management.ManagementFactory;
-import java.net.URISyntaxException;
-import java.util.concurrent.ConcurrentSkipListSet;
-import java.util.ArrayList;
-import java.util.Dictionary;
-import java.util.List;
-import java.util.Set;
 
-import static io.fabric8.zookeeper.utils.ZooKeeperUtils.setData;
+import io.fabric8.api.Container;
+import io.fabric8.api.FabricService;
+import io.fabric8.api.Version;
+import io.fabric8.api.jcip.ThreadSafe;
+import io.fabric8.api.scr.AbstractComponent;
+import io.fabric8.api.scr.ValidatingReference;
+import io.fabric8.common.util.Strings;
+import io.fabric8.internal.JsonHelper;
+import io.fabric8.zookeeper.ZkPath;
+import io.fabric8.zookeeper.utils.ZooKeeperUtils;
+import org.apache.curator.framework.CuratorFramework;
+import org.apache.curator.framework.state.ConnectionState;
+import org.apache.curator.framework.state.ConnectionStateListener;
+import org.apache.felix.scr.annotations.Activate;
+import org.apache.felix.scr.annotations.Component;
+import org.apache.felix.scr.annotations.Deactivate;
+import org.apache.felix.scr.annotations.Reference;
+import org.apache.felix.scr.annotations.ReferenceCardinality;
+import org.apache.zookeeper.CreateMode;
+import org.osgi.service.cm.Configuration;
+import org.osgi.service.cm.ConfigurationAdmin;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 @ThreadSafe
 @Component(name = "io.fabric8.cxf.registry", label = "Fabric8 CXF Registration Handler", immediate = true, metatype = false)
 public final class FabricCxfRegistrationHandler extends AbstractComponent implements ConnectionStateListener {
 
-    public static final String CXF_API_ENDPOINT_MBEAN_NAME = "org.apache.cxf:*";
+    public static final String CXF_API_ENDPOINT_MBEAN_NAME = "io.fabric8.cxf:*";
     private static final ObjectName CXF_OBJECT_NAME =  objectNameFor(CXF_API_ENDPOINT_MBEAN_NAME);
 
 
@@ -191,7 +188,7 @@ public final class FabricCxfRegistrationHandler extends AbstractComponent implem
 
     protected void onMBeanEvent(Container container, ObjectName oName, String type) {
         try {
-            if (isCxfServiceEndpointQuery.apply(oName)) {
+            if (isCxfServiceEndpointQuery.apply(oName) && mBeanServer.isRegistered(oName)) {
                 Object state = mBeanServer.getAttribute(oName, "State");
                 String address = null;
                 try {

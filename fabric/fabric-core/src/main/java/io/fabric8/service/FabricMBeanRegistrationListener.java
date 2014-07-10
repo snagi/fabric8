@@ -1,21 +1,21 @@
 /**
- * Copyright (C) FuseSource, Inc.
- * http://fusesource.com
+ *  Copyright 2005-2014 Red Hat, Inc.
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ *  Red Hat licenses this file to you under the Apache License, version
+ *  2.0 (the "License"); you may not use this file except in compliance
+ *  with the License.  You may obtain a copy of the License at
  *
- *    http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or
+ *  implied.  See the License for the specific language governing
+ *  permissions and limitations under the License.
  */
 package io.fabric8.service;
 
+import io.fabric8.common.util.ShutdownTracker;
 import org.apache.curator.framework.CuratorFramework;
 import org.apache.curator.framework.state.ConnectionState;
 import org.apache.curator.framework.state.ConnectionStateListener;
@@ -82,6 +82,7 @@ public final class FabricMBeanRegistrationListener extends AbstractComponent imp
     private ZooKeeperFacade zooKeeperMBean;
     private FileSystem fileSystemMBean;
     private final ExecutorService executor = Executors.newSingleThreadExecutor();
+    ShutdownTracker shutdownTracker = new ShutdownTracker();
 
     @Activate
     void activate() {
@@ -93,6 +94,7 @@ public final class FabricMBeanRegistrationListener extends AbstractComponent imp
     void deactivate() throws InterruptedException {
         deactivateComponent();
         unregisterMBeanServer();
+        shutdownTracker.stop();
         executor.shutdownNow();
         executor.awaitTermination(5, TimeUnit.MINUTES);
     }
@@ -101,8 +103,12 @@ public final class FabricMBeanRegistrationListener extends AbstractComponent imp
     public void handleNotification(final Notification notif, final Object o) {
         executor.submit(new Runnable() {
             public void run() {
-                if (isValid()) {
-                    doHandleNotification(notif, o);
+                if (shutdownTracker.attemptRetain()) {
+                    try {
+                        doHandleNotification(notif, o);
+                    } finally {
+                        shutdownTracker.release();
+                    }
                 }
             }
         });
@@ -140,8 +146,12 @@ public final class FabricMBeanRegistrationListener extends AbstractComponent imp
         case RECONNECTED:
             executor.submit(new Runnable() {
                 public void run() {
-                    if (isValid()) {
-                        updateProcessId();
+                    if (shutdownTracker.attemptRetain()) {
+                        try {
+                            updateProcessId();
+                        } finally {
+                            shutdownTracker.release();
+                        }
                     }
                 }
             });
@@ -155,8 +165,8 @@ public final class FabricMBeanRegistrationListener extends AbstractComponent imp
             String processName = (String) mbeanServer.get().getAttribute(new ObjectName("java.lang:type=Runtime"), "Name");
             Long processId = Long.parseLong(processName.split("@")[0]);
 
-            String karafName = runtimeProperties.get().getProperty(SystemProperties.KARAF_NAME);
-            String path = ZkPath.CONTAINER_PROCESS_ID.getPath(karafName);
+            String runtimeIdentity = runtimeProperties.get().getRuntimeIdentity();
+            String path = ZkPath.CONTAINER_PROCESS_ID.getPath(runtimeIdentity);
             Stat stat = exists(curator.get(), path);
             if (stat != null) {
                 if (stat.getEphemeralOwner() != curator.get().getZookeeperClient().getZooKeeper().getSessionId()) {
@@ -177,8 +187,8 @@ public final class FabricMBeanRegistrationListener extends AbstractComponent imp
 
     private void registerMBeanServer() {
         try {
-            String karafName = runtimeProperties.get().getProperty(SystemProperties.KARAF_NAME);
-            mbeanServer.get().addNotificationListener(new ObjectName("JMImplementation:type=MBeanServerDelegate"), this, null, karafName);
+            String runtimeIdentity = runtimeProperties.get().getRuntimeIdentity();
+            mbeanServer.get().addNotificationListener(new ObjectName("JMImplementation:type=MBeanServerDelegate"), this, null, runtimeIdentity);
             registerDomains();
             registerFabricMBeans();
         } catch (Exception e) {
@@ -196,12 +206,12 @@ public final class FabricMBeanRegistrationListener extends AbstractComponent imp
     }
 
     private void registerDomains() throws Exception {
-        String karafName = runtimeProperties.get().getProperty(SystemProperties.KARAF_NAME);
+        String runtimeIdentity = runtimeProperties.get().getRuntimeIdentity();
         synchronized (this) {
             domains.addAll(Arrays.asList(mbeanServer.get().getDomains()));
         }
         for (String domain : mbeanServer.get().getDomains()) {
-            setData(curator.get(), CONTAINER_DOMAIN.getPath(karafName, domain), "", CreateMode.EPHEMERAL);
+            setData(curator.get(), CONTAINER_DOMAIN.getPath(runtimeIdentity, domain), "", CreateMode.EPHEMERAL);
         }
     }
 
@@ -210,10 +220,10 @@ public final class FabricMBeanRegistrationListener extends AbstractComponent imp
         this.managerMBean = new FabricManager((FabricServiceImpl) fabricService.get());
         this.zooKeeperMBean = new ZooKeeperFacade((FabricServiceImpl) fabricService.get());
         this.fileSystemMBean = new FileSystem(runtimeProperties.get());
-        healthCheck.registerMBeanServer(mbeanServer.get());
-        managerMBean.registerMBeanServer(mbeanServer.get());
-        fileSystemMBean.registerMBeanServer(mbeanServer.get());
-        zooKeeperMBean.registerMBeanServer(mbeanServer.get());
+        healthCheck.registerMBeanServer(shutdownTracker, mbeanServer.get());
+        managerMBean.registerMBeanServer(shutdownTracker, mbeanServer.get());
+        fileSystemMBean.registerMBeanServer(shutdownTracker, mbeanServer.get());
+        zooKeeperMBean.registerMBeanServer(shutdownTracker, mbeanServer.get());
     }
 
     private void unregisterFabricMBeans() {

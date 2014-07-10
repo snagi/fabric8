@@ -1,18 +1,17 @@
 /**
- * Copyright (C) FuseSource, Inc.
- * http://fusesource.com
+ *  Copyright 2005-2014 Red Hat, Inc.
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ *  Red Hat licenses this file to you under the Apache License, version
+ *  2.0 (the "License"); you may not use this file except in compliance
+ *  with the License.  You may obtain a copy of the License at
  *
- *    http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or
+ *  implied.  See the License for the specific language governing
+ *  permissions and limitations under the License.
  */
 package io.fabric8.git.internal;
 
@@ -22,6 +21,7 @@ import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
 
 import io.fabric8.api.visibility.VisibleForTesting;
+
 import org.apache.felix.scr.annotations.Activate;
 import org.apache.felix.scr.annotations.Component;
 import org.apache.felix.scr.annotations.Deactivate;
@@ -30,6 +30,7 @@ import org.apache.felix.scr.annotations.Service;
 import org.eclipse.jgit.api.Git;
 import org.eclipse.jgit.api.errors.GitAPIException;
 import org.eclipse.jgit.errors.RepositoryNotFoundException;
+
 import io.fabric8.api.RuntimeProperties;
 import io.fabric8.api.jcip.ThreadSafe;
 import io.fabric8.api.scr.AbstractComponent;
@@ -38,13 +39,14 @@ import io.fabric8.git.GitListener;
 import io.fabric8.git.GitService;
 import io.fabric8.utils.SystemProperties;
 import io.fabric8.zookeeper.bootstrap.BootstrapConfiguration;
+import org.eclipse.jgit.lib.RepositoryCache;
 
 @ThreadSafe
 @Component(name = "io.fabric8.git.service", label = "Fabric8 Git Service", immediate = true, metatype = false)
 @Service(GitService.class)
 public final class FabricGitServiceImpl extends AbstractComponent implements GitService {
 
-    public static final String DEFAULT_GIT_PATH = File.separator + "git" + File.separator + "local" + File.separator + "fabric";
+    public static final String DEFAULT_GIT_PATH = "git" + File.separator + "local" + File.separator + "fabric";
 
     @Reference(referenceInterface = RuntimeProperties.class)
     private final ValidatingReference<RuntimeProperties> runtimeProperties = new ValidatingReference<RuntimeProperties>();
@@ -60,17 +62,20 @@ public final class FabricGitServiceImpl extends AbstractComponent implements Git
     @VisibleForTesting
     public void activate() throws IOException {
         RuntimeProperties sysprops = runtimeProperties.get();
-        localRepo = new File(sysprops.getProperty(SystemProperties.KARAF_DATA) + DEFAULT_GIT_PATH);
+        localRepo = sysprops.getDataPath().resolve(DEFAULT_GIT_PATH).toFile();
         if (!localRepo.exists() && !localRepo.mkdirs()) {
-            throw new IOException("Failed to create local repository");
+            throw new IOException("Failed to create local repository at:" + localRepo.getAbsolutePath());
         }
+
         git = openOrInit(localRepo);
+
         activateComponent();
     }
 
     @Deactivate
     void deactivate() {
         deactivateComponent();
+        RepositoryCache.clear();
     }
 
 

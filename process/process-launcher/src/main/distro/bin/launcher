@@ -1,25 +1,33 @@
 #!/bin/sh
-# ------------------------------------------------------------------------
-# Licensed to the Apache Software Foundation (ASF) under one or more
-# contributor license agreements.  See the NOTICE file distributed with
-# this work for additional information regarding copyright ownership.
-# The ASF licenses this file to You under the Apache License, Version 2.0
-# (the "License"); you may not use this file except in compliance with
-# the License.  You may obtain a copy of the License at
 #
-# http://www.apache.org/licenses/LICENSE-2.0
+#  Copyright 2005-2014 Red Hat, Inc.
 #
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-# ------------------------------------------------------------------------
+#  Red Hat licenses this file to you under the Apache License, version
+#  2.0 (the "License"); you may not use this file except in compliance
+#  with the License.  You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or
+#  implied.  See the License for the specific language governing
+#  permissions and limitations under the License.
+
+### Helper functions
+
+jvmArgs() {
+  if [ -z "$FABRIC8_JVM_ARGS" ]; then
+    cat ${APP_BASE}/etc/jvm.config
+  else
+    echo "$FABRIC8_JVM_ARGS"
+  fi
+}
+
+### Helper functions ends
 
 APP_USER=""
 SERVICE="process"
-APP_CONSOLE_OUT="/dev/null"
-APP_CONSOLE_ERR="/dev/null"
 
 #
 # Discover the APP_BASE from the location of this script.
@@ -52,6 +60,11 @@ if [ -z "$APP_BASE" ] ; then
 fi
 PID_FILE="${APP_BASE}/var/${SERVICE}.pid"
 
+# Redirect process output to log files
+APP_CONSOLE_CMD="${APP_BASE}/logs/cmd.log"
+APP_CONSOLE_OUT="${APP_BASE}/logs/out.log"
+APP_CONSOLE_ERR="${APP_BASE}/logs/err.log"
+
 # Add the jars in the lib dir
 CLASSPATH=""
 for file in "$APP_BASE"/lib/*.jar
@@ -62,12 +75,21 @@ do
         CLASSPATH="$CLASSPATH:$file"
     fi
 done
+CLASSPATH="$CLASSPATH:$APP_BASE/classes"
+
+JVM_DEBUG_ARGS="$FABRIC8_JVM_DEBUG_ARGS"
+if [ -z "$JVM_DEBUG_ARGS" ]; then
+  if [ ! -z "$FABRIC8_JVM_DEBUG" ] && [ "$FABRIC8_JVM_DEBUG" == 'TRUE' ]; then
+    JVM_DEBUG_ARGS='-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=5005'
+  fi
+fi
 
 JVM_EXEC="java"
-JVM_ARGS=""
-APP_ARGS=""
+JAVA_AGENT="$FABRIC8_JAVA_AGENT"
+JVM_ARGS=`jvmArgs`
+APP_ARGS="$FABRIC8_MAIN_ARGS"
 MAIN_JAR="$APP_BASE/lib/main.jar"
-MAIN_CLASS=""
+MAIN_CLASS="$FABRIC8_JAVA_MAIN"
 
 # Source the /etc/defaults script if it exists so it can modify the 
 # env vars setup so far..
@@ -119,10 +141,18 @@ start() {
   fi
 
   if [ -z "$MAIN_CLASS" ]; then
-    RUN_COMMAND="${JVM_EXEC} ${JVM_ARGS} -classpath ${CLASSPATH} -jar ${MAIN_JAR} ${JVM_ARGS}"   
+    RUN_COMMAND="${JVM_EXEC} ${JVM_DEBUG_ARGS} ${JAVA_AGENT} ${JVM_ARGS} -classpath ${CLASSPATH} -jar ${MAIN_JAR} ${APP_ARGS}"
   else
-    RUN_COMMAND="${JVM_EXEC} ${JVM_ARGS} -classpath ${CLASSPATH} ${MAIN_CLASS} ${JVM_ARGS}"   
+    RUN_COMMAND="${JVM_EXEC} ${JVM_DEBUG_ARGS} ${JAVA_AGENT} ${JVM_ARGS} -classpath ${CLASSPATH} ${MAIN_CLASS} ${APP_ARGS}"
   fi
+
+  echo "Running:" > ${APP_CONSOLE_CMD}
+  echo "$RUN_COMMAND" >> ${APP_CONSOLE_CMD}
+  echo >> ${APP_CONSOLE_CMD}
+  echo "Environment variables:" >> ${APP_CONSOLE_CMD}
+  env | sort | grep FABRIC >> ${APP_CONSOLE_CMD}
+
+  echo "Running $RUN_COMMAND"
 
   # If you have bash, then you can use the 'exec -a newname' syntax to rename the java process.
   if [ -x "/bin/bash" ] ; then

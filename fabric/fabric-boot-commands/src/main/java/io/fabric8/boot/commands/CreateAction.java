@@ -1,29 +1,28 @@
 /**
- * Copyright (C) FuseSource, Inc.
- * http://fusesource.com
+ *  Copyright 2005-2014 Red Hat, Inc.
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ *  Red Hat licenses this file to you under the Apache License, version
+ *  2.0 (the "License"); you may not use this file except in compliance
+ *  with the License.  You may obtain a copy of the License at
  *
- *    http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or
+ *  implied.  See the License for the specific language governing
+ *  permissions and limitations under the License.
  */
 package io.fabric8.boot.commands;
 
 import io.fabric8.api.ContainerOptions;
 import io.fabric8.api.CreateEnsembleOptions;
-import io.fabric8.api.DefaultRuntimeProperties;
-import io.fabric8.api.RuntimeProperties;
 import io.fabric8.api.FabricService;
+import io.fabric8.api.RuntimeProperties;
 import io.fabric8.api.ServiceProxy;
 import io.fabric8.api.ZooKeeperClusterBootstrap;
 import io.fabric8.api.ZooKeeperClusterService;
+import io.fabric8.utils.PasswordEncoder;
 import io.fabric8.utils.Ports;
 import io.fabric8.utils.SystemProperties;
 import io.fabric8.utils.shell.ShellUtils;
@@ -31,6 +30,7 @@ import io.fabric8.zookeeper.ZkDefs;
 
 import java.io.File;
 import java.io.IOException;
+import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Set;
@@ -41,11 +41,12 @@ import org.apache.felix.gogo.commands.Option;
 import org.apache.felix.utils.properties.Properties;
 import org.apache.karaf.shell.console.AbstractAction;
 import org.osgi.framework.BundleContext;
+import org.osgi.framework.ServiceReference;
 
 import com.google.common.base.Strings;
 
 @Command(name = "create", scope = "fabric", description = "Creates a new fabric ensemble (ZooKeeper ensemble) and imports fabric profiles", detailedDescription = "classpath:create.txt")
-final class CreateAction extends AbstractAction {
+class CreateAction extends AbstractAction {
 
     private static final String GIT_REMOTE_URL = "gitRemoteUrl";
     private static final String GIT_REMOTE_USER = "gitRemoteUser";
@@ -59,6 +60,8 @@ final class CreateAction extends AbstractAction {
     private String importDir;
     @Option(name = "-v", aliases = {"--verbose"}, description = "Flag to enable verbose output of files being imported")
     boolean verbose = false;
+    @Option(name = "-f", aliases = "--force", multiValued = false, description = "Forces re-creating fabric")
+    private boolean force;
     @Option(name = "-g", aliases = {"--global-resolver"}, description = "The global resolver policy, which becomes the default resolver policy applied to all new containers created in this fabric. Possible values are: localip, localhostname, publicip, publichostname, manualip. Default is localhostname.")
     String globalResolver;
     @Option(name = "-r", aliases = {"--resolver"}, description = "The local resolver policy. Possible values are: localip, localhostname, publicip, publichostname, manualip. Default is localhostname.")
@@ -71,8 +74,8 @@ final class CreateAction extends AbstractAction {
     private boolean nonManaged;
     @Option(name = "--wait-for-provisioning", multiValued = false, description = "Flag to wait for the initial container provisioning")
     private boolean waitForProvisioning=false;
-    @Option(name = "--provision-timeout", multiValued = false, description = "How long to wait (milliseconds) for the initial container provisioning")
-    private long provisionTimeout=120000L;
+    @Option(name = "--bootstrap-timeout", multiValued = false, description = "How long to wait (milliseconds) for the initial fabric bootstrap")
+    private long bootstrapTimeout =120000L;
     @Option(name = "-t", aliases = {"--time"}, description = "How long to wait (milliseconds) for the ensemble to start up before trying to import the default data")
     long ensembleStartupTime = 2000L;
     @Option(name = "-p", aliases = "--profile", multiValued = true, description = "Chooses the profile of the container.")
@@ -93,6 +96,8 @@ final class CreateAction extends AbstractAction {
     private String zooKeeperDataDir = CreateEnsembleOptions.DEFAULT_DATA_DIR;
     @Option(name = "--zookeeper-password", multiValued = false, description = "The ensemble password to use (one will be generated if not given)")
     private String zookeeperPassword;
+    @Option(name = "--zookeeper-server-port", multiValued = false, description = "The main port for ZooKeeper server")
+    private int zooKeeperServerPort = -1;
     @Option(name = "--generate-zookeeper-password", multiValued = false, description = "Flag to enable automatic generation of password")
     private boolean generateZookeeperPassword = false;
     @Option(name = "--new-user", multiValued = false, description = "The username of a new user. The option refers to karaf user (ssh, http, jmx).")
@@ -122,27 +127,36 @@ final class CreateAction extends AbstractAction {
         this.bootstrap = bootstrap;
         this.runtimeProperties = runtimeProperties;
 
-        String karafHome = runtimeProperties.getProperty(SystemProperties.KARAF_HOME);
-        importDir = karafHome + File.separator + "fabric" + File.separator + "import";
+        Path homePath = runtimeProperties.getHomePath();
+        importDir = homePath.resolve("fabric").resolve("import").toFile().getAbsolutePath();
     }
 
     protected Object doExecute() throws Exception {
 
-        String karafName = runtimeProperties.getProperty(SystemProperties.KARAF_NAME);
+        // prevent creating fabric if already created
+        ServiceReference<FabricService> sref = bundleContext.getServiceReference(FabricService.class);
+        FabricService fabricService = sref != null ? bundleContext.getService(sref) : null;
+        if (!force && (fabricService != null && fabricService.getCurrentContainer().isEnsembleServer())) {
+            System.out.println("Current container " + fabricService.getCurrentContainerName() + " is already in the current fabric ensemble. Cannot create fabric.");
+            System.out.println("You can use the --force option, if you want to force re-create the fabric.");
+            return null;
+        }
+
+        String runtimeIdentity = runtimeProperties.getRuntimeIdentity();
         CreateEnsembleOptions.Builder builder = CreateEnsembleOptions.builder()
                 .zooKeeperServerTickTime(zooKeeperTickTime)
                 .zooKeeperServerInitLimit(zooKeeperInitLimit)
                 .zooKeeperServerSyncLimit(zooKeeperSyncLimit)
                 .zooKeeperServerDataDir(zooKeeperDataDir)
-                .fromRuntimeProperties(new DefaultRuntimeProperties())
-                .provisionTimeout(provisionTimeout)
+                .fromRuntimeProperties(runtimeProperties)
+                .bootstrapTimeout(bootstrapTimeout)
                 .waitForProvision(waitForProvisioning)
                 .clean(clean);
 
         builder.version(version);
 
         if (containers == null || containers.isEmpty()) {
-            containers = Arrays.asList(karafName);
+            containers = Arrays.asList(runtimeIdentity);
         }
 
         if (!noImport && importDir != null) {
@@ -177,6 +191,14 @@ final class CreateAction extends AbstractAction {
             }
         }
 
+        if (zooKeeperServerPort > 0) {
+            // --zookeeper-server-port option has higher priority than
+            // CreateEnsembleOptions.ZOOKEEPER_SERVER_PORT and CreateEnsembleOptions.ZOOKEEPER_SERVER_CONNECTION_PORT
+            // system/runtime properties
+            builder.setZooKeeperServerPort(zooKeeperServerPort);
+            builder.setZooKeeperServerConnectionPort(zooKeeperServerPort);
+        }
+
         //Configure External Git Repository.
         if (externalGitUrl != null) {
             builder.dataStoreProperty(GIT_REMOTE_URL, externalGitUrl);
@@ -187,7 +209,6 @@ final class CreateAction extends AbstractAction {
         if (externalGitPassword != null) {
             builder.dataStoreProperty(GIT_REMOTE_PASSWORD, externalGitPassword);
         }
-
 
         if (profiles != null && profiles.size() > 0) {
             builder.profiles(profiles);
@@ -237,7 +258,7 @@ final class CreateAction extends AbstractAction {
         if (generateZookeeperPassword) {
             //do nothing use the generated password.
         } else if (zookeeperPassword == null) {
-            zookeeperPassword = runtimeProperties.getProperty(CreateEnsembleOptions.ZOOKEEPER_PASSWORD, newUserPassword);
+            zookeeperPassword = PasswordEncoder.decode(runtimeProperties.getProperty(CreateEnsembleOptions.ZOOKEEPER_PASSWORD, PasswordEncoder.encode(newUserPassword)));
             builder.zookeeperPassword(zookeeperPassword);
         } else {
             builder.zookeeperPassword(zookeeperPassword);
@@ -247,7 +268,7 @@ final class CreateAction extends AbstractAction {
                                                .withUser(newUser, newUserPassword , newUserRole)
                                                .build();
 
-        if (containers.size() == 1 && containers.contains(karafName)) {
+        if (containers.size() == 1 && containers.contains(runtimeIdentity)) {
             bootstrap.create(options);
         } else {
             ServiceProxy<ZooKeeperClusterService> serviceProxy = ServiceProxy.createServiceProxy(bundleContext, ZooKeeperClusterService.class);
@@ -257,7 +278,6 @@ final class CreateAction extends AbstractAction {
                 serviceProxy.close();
             }
         }
-
 
         ShellUtils.storeZookeeperPassword(session, options.getZookeeperPassword());
         if (zookeeperPassword == null && !generateZookeeperPassword) {
@@ -273,6 +293,7 @@ final class CreateAction extends AbstractAction {
             System.out.println("It may take a couple of seconds for the container to provision...");
             System.out.println("You can use the --wait-for-provisioning option, if you want this command to block until the container is provisioned.");
         }
+
         return null;
     }
 
@@ -294,7 +315,7 @@ final class CreateAction extends AbstractAction {
             String password2 = null;
             while (password1 == null || !password1.equals(password2)) {
                 password1 = ShellUtils.readLine(session, "Password for " + user + ": ", true);
-                password2 = ShellUtils.readLine(session, "Verify password for " + user + ":", true);
+                password2 = ShellUtils.readLine(session, "Verify password for " + user + ": ", true);
 
                 if (password1 == null || password2 == null) {
                     break;

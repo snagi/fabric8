@@ -1,52 +1,82 @@
 /**
- * Copyright (C) FuseSource, Inc.
- * http://fusesource.com
+ *  Copyright 2005-2014 Red Hat, Inc.
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ *  Red Hat licenses this file to you under the Apache License, version
+ *  2.0 (the "License"); you may not use this file except in compliance
+ *  with the License.  You may obtain a copy of the License at
  *
- *    http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or
+ *  implied.  See the License for the specific language governing
+ *  permissions and limitations under the License.
  */
 package io.fabric8.commands;
 
-import org.apache.felix.gogo.commands.Argument;
-import org.apache.felix.gogo.commands.Command;
-import io.fabric8.api.Container;
-import io.fabric8.api.Version;
-import io.fabric8.boot.commands.support.FabricCommand;
+import io.fabric8.api.FabricService;
+import io.fabric8.api.scr.ValidatingReference;
+import io.fabric8.boot.commands.support.AbstractCommandComponent;
+import io.fabric8.boot.commands.support.VersionCompleter;
+import org.apache.felix.gogo.commands.Action;
+import org.apache.felix.gogo.commands.basic.AbstractCommand;
+import org.apache.felix.scr.annotations.Activate;
+import org.apache.felix.scr.annotations.Component;
+import org.apache.felix.scr.annotations.Deactivate;
+import org.apache.felix.scr.annotations.Property;
+import org.apache.felix.scr.annotations.Reference;
+import org.apache.felix.scr.annotations.Service;
+import org.apache.felix.service.command.Function;
 
-@Command(name = "version-delete", scope = "fabric", description = "Delete the specified version, together with all of its associated profile data")
-public class VersionDelete extends FabricCommand {
+@Component(immediate = true)
+@Service({ Function.class, AbstractCommand.class })
+@org.apache.felix.scr.annotations.Properties({
+    @Property(name = "osgi.command.scope", value = VersionDelete.SCOPE_VALUE),
+    @Property(name = "osgi.command.function", value = VersionDelete.FUNCTION_VALUE)
+})
+public class VersionDelete extends AbstractCommandComponent {
 
-    @Argument(index = 0, name = "version", description = "The version to delete", required = true, multiValued = false)
-    private String versionName;
+    public static final String SCOPE_VALUE = "fabric";
+    public static final String FUNCTION_VALUE = "version-delete";
+    public static final String DESCRIPTION = "Delete the specified version, together with all of its associated profile data";
+
+    @Reference(referenceInterface = FabricService.class)
+    private final ValidatingReference<FabricService> fabricService = new ValidatingReference<FabricService>();
+
+    @Reference(referenceInterface = VersionCompleter.class, bind = "bindVersionCompleter", unbind = "unbindVersionCompleter")
+    private VersionCompleter versionCompleter; // dummy field
+
+    @Activate
+    void activate() {
+        activateComponent();
+    }
+
+    @Deactivate
+    void deactivate() {
+        deactivateComponent();
+    }
 
     @Override
-    protected Object doExecute() throws Exception {
-        Version version = fabricService.getVersion(versionName);
-        if (version == null) {
-            throw new IllegalArgumentException("Cannot find version: " + versionName);
-        }
-        StringBuilder sb = new StringBuilder();
-        for (Container container : fabricService.getContainers()) {
-            if (version.equals(container.getVersion())) {
-                if (sb.length() > 0) {
-                    sb.append(", ");
-                }
-                sb.append(container.getId());
-            }
-        }
-        if (sb.length() > 0) {
-            throw new IllegalArgumentException("Version " + versionName + " is still in used by the following containers: " + sb.toString());
-        }
-        version.delete();
-        return null;
+    public Action createNewAction() {
+        assertValid();
+        return new VersionDeleteAction(fabricService.get());
     }
+
+    void bindFabricService(FabricService fabricService) {
+        this.fabricService.bind(fabricService);
+    }
+
+    void unbindFabricService(FabricService fabricService) {
+        this.fabricService.unbind(fabricService);
+    }
+
+    void bindVersionCompleter(VersionCompleter completer) {
+        bindCompleter(completer);
+    }
+
+    void unbindVersionCompleter(VersionCompleter completer) {
+        unbindCompleter(completer);
+    }
+
 }

@@ -1,37 +1,22 @@
 /**
- * Copyright (C) FuseSource, Inc.
- * http://fusesource.com
+ *  Copyright 2005-2014 Red Hat, Inc.
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ *  Red Hat licenses this file to you under the Apache License, version
+ *  2.0 (the "License"); you may not use this file except in compliance
+ *  with the License.  You may obtain a copy of the License at
  *
- *    http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or
+ *  implied.  See the License for the specific language governing
+ *  permissions and limitations under the License.
  */
 package io.fabric8.api.jmx;
 
-import org.apache.commons.codec.binary.Base64;
-import org.apache.curator.framework.CuratorFramework;
-import org.codehaus.jackson.JsonNode;
-import org.codehaus.jackson.map.DeserializationConfig;
-import org.codehaus.jackson.map.ObjectMapper;
-import org.codehaus.jackson.node.ObjectNode;
-import io.fabric8.api.*;
-import io.fabric8.service.FabricServiceImpl;
-import org.fusesource.insight.log.support.Strings;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import javax.management.MBeanServer;
-import javax.management.MalformedObjectNameException;
-import javax.management.ObjectName;
 import java.io.BufferedInputStream;
+import java.io.Closeable;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
@@ -43,10 +28,38 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.regex.Pattern;
+import javax.management.MBeanServer;
+import javax.management.MalformedObjectNameException;
+import javax.management.ObjectName;
+
+import com.fasterxml.jackson.databind.DeserializationFeature;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
+import io.fabric8.api.Constants;
+import io.fabric8.api.Container;
+import io.fabric8.api.ContainerProvider;
+import io.fabric8.api.CreateContainerBasicOptions;
+import io.fabric8.api.CreateContainerMetadata;
+import io.fabric8.api.CreateContainerOptions;
+import io.fabric8.api.FabricException;
+import io.fabric8.api.FabricRequirements;
+import io.fabric8.api.Ids;
+import io.fabric8.api.Profile;
+import io.fabric8.api.Profiles;
+import io.fabric8.api.Version;
+import io.fabric8.common.util.ShutdownTracker;
+import io.fabric8.insight.log.support.Strings;
+import io.fabric8.service.FabricServiceImpl;
+import org.apache.commons.codec.binary.Base64;
+import org.apache.curator.framework.CuratorFramework;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import static io.fabric8.zookeeper.utils.ZooKeeperUtils.getChildrenSafe;
 import static io.fabric8.zookeeper.utils.ZooKeeperUtils.getSubstitutedData;
@@ -76,11 +89,11 @@ public class FabricManager implements FabricManagerMBean {
         this.objectName = objectName;
     }
 
-    public void registerMBeanServer(MBeanServer mbeanServer) {
+    public void registerMBeanServer(ShutdownTracker shutdownTracker, MBeanServer mbeanServer) {
         try {
             ObjectName name = getObjectName();
 			if (!mbeanServer.isRegistered(name)) {
-				mbeanServer.registerMBean(this, name);
+				mbeanServer.registerMBean(shutdownTracker.mbeanProxy(this), name);
 			}
 		} catch (Exception e) {
             LOG.warn("An error occured during mbean server registration: " + e, e);
@@ -107,6 +120,12 @@ public class FabricManager implements FabricManagerMBean {
 
     // Management API
     //-------------------------------------------------------------------------
+
+    @Override
+    public String getFabricEnvironment() {
+        return getFabricService().getEnvironment();
+    }
+
     @Override
     public List<String> getFields(String className) {
         try {
@@ -120,16 +139,17 @@ public class FabricManager implements FabricManagerMBean {
     public ServiceStatusDTO getFabricServiceStatus() {
         ServiceStatusDTO rc = new ServiceStatusDTO();
 
+        CuratorFramework curator = getFabricService().adapt(CuratorFramework.class);
         try {
-            rc.setClientValid(getFabricService().getCurator() != null);
+            rc.setClientValid(curator != null);
         } catch (Throwable t) {
             rc.setClientValid(false);
         }
         if (rc.isClientValid()) {
             try {
-                rc.setClientConnected(getFabricService().getCurator().getZookeeperClient().isConnected());
+                rc.setClientConnected(curator.getZookeeperClient().isConnected());
                 if (!rc.isClientConnected()) {
-                    rc.setClientConnectionError(getFabricService().getCurator().getState().toString());
+                    rc.setClientConnectionError(curator.getState().toString());
                 }
             } catch(Throwable t) {
                 rc.setClientConnected(false);
@@ -218,9 +238,14 @@ public class FabricManager implements FabricManagerMBean {
 
     private ObjectMapper getObjectMapper() {
         ObjectMapper mapper = new ObjectMapper();
-        mapper.configure(DeserializationConfig.Feature.FAIL_ON_UNKNOWN_PROPERTIES, false);
-        mapper.configure(DeserializationConfig.Feature.ACCEPT_SINGLE_VALUE_AS_ARRAY, true);
+        mapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
+        mapper.configure(DeserializationFeature.ACCEPT_SINGLE_VALUE_AS_ARRAY, true);
         return mapper;
+    }
+
+    @Override
+    public void importProfiles(String versionId, List<String> profileZipUrls) {
+        getFabricService().getDataStore().importProfiles(versionId, profileZipUrls);
     }
 
     @Override
@@ -245,21 +270,8 @@ public class FabricManager implements FabricManagerMBean {
 
     @Override
     public String profileWebAppURL(String webAppId, String profileId, String versionId) {
-        FabricServiceImpl service = getFabricService();
-        if (versionId == null || versionId.length() == 0) {
-            Version version = service.getDefaultVersion();
-            if (version != null) {
-                versionId = version.getId();
-            }
-        }
-        List<String> ids = containerIdsForProfile(versionId, profileId);
-        for (String id : ids) {
-            String url = containerWebAppURL(webAppId, id);
-            if (url != null && url.length() > 0) {
-                return url;
-            }
-        }
-        return null;
+        return getFabricService().profileWebAppURL(webAppId, profileId, versionId);
+
     }
 
 
@@ -470,6 +482,30 @@ public class FabricManager implements FabricManagerMBean {
     }
 
     @Override
+    public void setProfileSystemProperties(String versionId, String profileId, Map<String, String> systemProperties) {
+        Version version = getFabricService().getVersion(versionId);
+        Profile profile = version.getProfile(profileId);
+        Map<String, String> profileProperties = getProfileProperties(versionId, profileId, Constants.AGENT_PID);
+        if (profileProperties == null) {
+            // is it necessary?
+            profileProperties = new HashMap<String, String>();
+        }
+        // remove existing
+        for (Iterator<Map.Entry<String, String>> iterator = profileProperties.entrySet().iterator(); iterator.hasNext(); ) {
+            Map.Entry<String, String> entry = iterator.next();
+            if (entry.getKey().startsWith("system.")) {
+                iterator.remove();
+            }
+        }
+        // add new
+        for (String k : systemProperties.keySet()) {
+            profileProperties.put("system." + k, systemProperties.get(k));
+        }
+
+        setProfileProperties(versionId, profileId, Constants.AGENT_PID, profileProperties);
+    }
+
+    @Override
     public String containerCreateOptionsType(String id) {
         CreateContainerMetadata<?> metadata = getContainerMetaData(id);
         if (metadata == null) {
@@ -524,7 +560,7 @@ public class FabricManager implements FabricManagerMBean {
         }
         getFabricService().getDataStore().setContainerMetadata(metadata);
     }
-    
+
     @Override
     public String[] containerIds() {
       List<String> answer = new ArrayList<String>();
@@ -684,7 +720,7 @@ public class FabricManager implements FabricManagerMBean {
     }
 
 /*
-    
+
     public PatchService patchService() {
         return getFabricService().getPatchService();
     }
@@ -711,10 +747,10 @@ public class FabricManager implements FabricManagerMBean {
 
         List<Map<String, Object>> featureDefs = new ArrayList<Map<String, Object>>();
 
-        for (String feature : isParentFeature.keySet()) {
+        for (Map.Entry<String,Boolean> featureEntry : isParentFeature.entrySet()) {
             Map<String, Object> featureDef = new HashMap<String, Object>();
-            featureDef.put("id", feature);
-            featureDef.put("isParentFeature", isParentFeature.get(feature));
+            featureDef.put("id", featureEntry.getKey());
+            featureDef.put("isParentFeature", featureEntry.getValue());
             featureDefs.add(featureDef);
         }
 
@@ -725,14 +761,18 @@ public class FabricManager implements FabricManagerMBean {
             Map<String, Object> repoDef = new HashMap<String, Object>();
 
             repoDef.put("id", repo);
-            InputStream is = null;
+            Closeable closeable = null;
             try {
                 URL url = new URL(repo);
-                is = new BufferedInputStream(url.openStream());
+                InputStream os = url.openStream();
+                closeable = os;
+                InputStream is = new BufferedInputStream(url.openStream());
+                closeable = is;
                 char[] buffer = new char[8192];
                 StringBuilder data = new StringBuilder();
 
                 Reader in = new InputStreamReader(is, "UTF-8");
+                closeable = in;
                 for (;;) {
                     int stat = in.read(buffer, 0, buffer.length);
                     if (stat < 0) {
@@ -745,8 +785,8 @@ public class FabricManager implements FabricManagerMBean {
                 repoDef.put("error", t.getMessage());
             } finally {
                 try {
-                    if (is != null) {
-                        is.close();
+                    if (closeable != null) {
+                        closeable.close();
                     }
                 } catch (Throwable t) {
                     // whatevs, I tried
@@ -790,7 +830,6 @@ public class FabricManager implements FabricManagerMBean {
     }
 
     @Override
-    @Deprecated
     public List<String> getProfileIds(String version) {
         return Ids.getIds(getFabricService().getVersion(version).getProfiles());
     }
@@ -838,9 +877,9 @@ public class FabricManager implements FabricManagerMBean {
                 Map<String, String> files = new HashMap<String, String>();
                 Map<String, byte[]> configs = profile.getFileConfigurations();
 
-                for (String key : configs.keySet()) {
-                    if (pattern.matcher(key).matches()) {
-                        files.put(key, Base64.encodeBase64String(configs.get(key)));
+                for (Map.Entry<String, byte[]> configEntry : configs.entrySet()) {
+                    if (pattern.matcher(configEntry.getKey()).matches()) {
+                        files.put(configEntry.getKey(), Base64.encodeBase64String(configEntry.getValue()));
                     }
                 }
                 answer.put(profileId, files);
@@ -848,7 +887,7 @@ public class FabricManager implements FabricManagerMBean {
         }
         return answer;
     }
-    
+
     @Override
     public void deleteConfigurationFile(String versionId, String profileId, String fileName) {
         Profile profile = getFabricService().getVersion(versionId).getProfile(profileId);
@@ -904,6 +943,20 @@ public class FabricManager implements FabricManagerMBean {
         profile.setOverrides(overrides);
     }
 
+    @Override
+    public void setProfileOptionals(String versionId, String profileId, List<String> optionals) {
+        Version v = getFabricService().getVersion(versionId);
+        Profile profile = v.getProfile(profileId);
+        profile.setOptionals(optionals);
+    }
+
+
+    @Override
+    public void setProfileTags(String versionId, String profileId, List<String> tags) {
+        Version v = getFabricService().getVersion(versionId);
+        Profile profile = v.getProfile(profileId);
+        profile.setTags(tags);
+    }
 
 /*
     @Override
@@ -1007,6 +1060,16 @@ public class FabricManager implements FabricManagerMBean {
 */
 
     @Override
+    public String webConsoleUrl() {
+        return getFabricService().getWebConsoleUrl();
+    }
+
+    @Override
+    public String gitUrl() {
+        return getFabricService().getGitUrl();
+    }
+
+    @Override
     public String getZookeeperUrl() {
         return getFabricService().getZookeeperUrl();
     }
@@ -1047,8 +1110,8 @@ public class FabricManager implements FabricManagerMBean {
     @Override
     public void requirementsJson(String json) throws IOException {
         ObjectMapper mapper = new ObjectMapper();
-        mapper.configure(DeserializationConfig.Feature.FAIL_ON_UNKNOWN_PROPERTIES, false);
-        mapper.configure(DeserializationConfig.Feature.ACCEPT_SINGLE_VALUE_AS_ARRAY, true);
+        mapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
+        mapper.configure(DeserializationFeature.ACCEPT_SINGLE_VALUE_AS_ARRAY, true);
         Object value = mapper.reader(FabricRequirements.class).readValue(json);
         if (value instanceof FabricRequirements) {
             requirements((FabricRequirements) value);
@@ -1110,8 +1173,8 @@ public class FabricManager implements FabricManagerMBean {
 
         Map<String, String> answer = new HashMap<String, String>();
 
-        for (String name : providers.keySet()) {
-            answer.put(name, providers.get(name).getOptionsType().getName());
+        for (Map.Entry<String, ContainerProvider> providerEntry : providers.entrySet()) {
+            answer.put(providerEntry.getKey(), providerEntry.getValue().getOptionsType().getName());
         }
         return answer;
     }
@@ -1141,7 +1204,7 @@ public class FabricManager implements FabricManagerMBean {
             }
         }
 
-        if (patchFiles.size() == 0) {
+        if (patchFiles.isEmpty()) {
             LOG.warn("No valid patches to apply");
             throw new FabricException("No valid patches to apply");
         }
@@ -1179,7 +1242,10 @@ public class FabricManager implements FabricManagerMBean {
         for (File file : patchFiles) {
             try {
                 LOG.info("Deleting patch file {}", file);
-                file.delete();
+                boolean deleted = file.delete();
+                if(!deleted) {
+                    LOG.warn("Failed to delete patch file {}", file);
+                }
             } catch (Throwable t) {
                 LOG.warn("Failed to delete patch file {} due to {}", file, t);
             }
@@ -1197,6 +1263,30 @@ public class FabricManager implements FabricManagerMBean {
         getFabricService().setConfigurationValue(versionId, profileId, pid, key, value);
     }
 
+    @Override
+    public String mavenProxyDownloadUrl() {
+        URI uri = getFabricService().getMavenRepoURI();
+        if (uri != null) {
+            return uri.toASCIIString();
+        } else {
+            return null;
+        }
+    }
+
+    @Override
+    public String mavenProxyUploadUrl() {
+        URI uri = getFabricService().getMavenRepoUploadURI();
+        if (uri != null) {
+            return uri.toASCIIString();
+        } else {
+            return null;
+        }
+    }
+
+    @Override
+    public String restApiUrl() {
+        return getFabricService().getRestAPI();
+    }
 
     @Override
     public String clusterJson(String clusterPathSegment) throws Exception {
@@ -1212,7 +1302,7 @@ public class FabricManager implements FabricManagerMBean {
             }
         }
         Map<String,Object> answer = new HashMap<String, Object>();
-        CuratorFramework curator = getFabricService().getCurator();
+        CuratorFramework curator = getFabricService().adapt(CuratorFramework.class);
         ObjectMapper mapper = new ObjectMapper();
         addChildrenToMap(answer, path, curator, mapper);
         return mapper.writeValueAsString(answer);
@@ -1257,7 +1347,7 @@ public class FabricManager implements FabricManagerMBean {
                 // recurse into children
                 Map<String, Object> map = new HashMap<String, Object>();
                 addChildrenToMap(map, childPath, curator, mapper);
-                if (map.size() > 0) {
+                if (!map.isEmpty()) {
                     answer.put(child, map);
                 }
             }

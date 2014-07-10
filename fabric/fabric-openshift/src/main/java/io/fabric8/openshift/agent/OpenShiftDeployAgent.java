@@ -1,20 +1,18 @@
-/*
- * Copyright (C) FuseSource, Inc.
- *   http://fusesource.com
+/**
+ *  Copyright 2005-2014 Red Hat, Inc.
  *
- *   Licensed under the Apache License, Version 2.0 (the "License");
- *   you may not use this file except in compliance with the License.
- *   You may obtain a copy of the License at
+ *  Red Hat licenses this file to you under the Apache License, version
+ *  2.0 (the "License"); you may not use this file except in compliance
+ *  with the License.  You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
- *   Unless required by applicable law or agreed to in writing, software
- *   distributed under the License is distributed on an "AS IS" BASIS,
- *   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- *   See the License for the specific language governing permissions and
- *   limitations under the License.
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or
+ *  implied.  See the License for the specific language governing
+ *  permissions and limitations under the License.
  */
-
 package io.fabric8.openshift.agent;
 
 import java.io.File;
@@ -41,8 +39,8 @@ import org.eclipse.jgit.errors.UnsupportedCredentialItem;
 import org.eclipse.jgit.transport.CredentialItem;
 import org.eclipse.jgit.transport.CredentialsProvider;
 import org.eclipse.jgit.transport.URIish;
-import org.fusesource.common.util.Maps;
-import org.fusesource.common.util.Strings;
+import io.fabric8.common.util.Maps;
+import io.fabric8.common.util.Strings;
 import io.fabric8.agent.download.DownloadManager;
 import io.fabric8.agent.download.DownloadManagers;
 import io.fabric8.api.Container;
@@ -59,7 +57,6 @@ import io.fabric8.groups.internal.ZooKeeperGroup;
 import io.fabric8.openshift.CreateOpenshiftContainerOptions;
 import io.fabric8.openshift.OpenShiftConstants;
 import io.fabric8.openshift.OpenShiftUtils;
-import io.fabric8.utils.SystemProperties;
 import io.fabric8.zookeeper.ZkPath;
 import org.osgi.service.cm.ConfigurationAdmin;
 import org.slf4j.Logger;
@@ -269,8 +266,9 @@ public final class OpenShiftDeployAgent extends AbstractComponent implements Gro
         String webappDir = relativePath(container, openshiftConfiguration, OpenShiftConstants.PROPERTY_DEPLOY_WEBAPPS);
         String deployDir = relativePath(container, openshiftConfiguration, OpenShiftConstants.PROPERTY_DEPLOY_JARS);
         if (webappDir != null || deployDir != null) {
-            DownloadManager downloadManager = DownloadManagers.createDownloadManager(fabricService.get(), container.getOverlayProfile(), downloadExecutor);
-            DeploymentUpdater deploymentUpdater = new DeploymentUpdater(downloadManager, container, webappDir, deployDir);
+            FabricService fabric = fabricService.get();
+            DownloadManager downloadManager = DownloadManagers.createDownloadManager(fabric, downloadExecutor);
+            DeploymentUpdater deploymentUpdater = new DeploymentUpdater(downloadManager, fabric, container, webappDir, deployDir);
             deploymentUpdater.setRepositories(Maps.stringValue(openshiftConfiguration, OpenShiftConstants.PROPERTY_REPOSITORIES, OpenShiftConstants.DEFAULT_REPOSITORIES));
             deploymentUpdater.setCopyFilesIntoGit(Maps.booleanValue(openshiftConfiguration, OpenShiftConstants.PROPERTY_COPY_BINARIES_TO_GIT, false));
             return deploymentUpdater;

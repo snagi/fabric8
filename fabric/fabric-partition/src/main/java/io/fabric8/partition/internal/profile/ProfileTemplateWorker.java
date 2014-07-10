@@ -1,5 +1,5 @@
-/*
- * Copyright 2010 Red Hat, Inc.
+/**
+ *  Copyright 2005-2014 Red Hat, Inc.
  *
  *  Red Hat licenses this file to you under the Apache License, version
  *  2.0 (the "License"); you may not use this file except in compliance
@@ -13,7 +13,6 @@
  *  implied.  See the License for the specific language governing
  *  permissions and limitations under the License.
  */
-
 package io.fabric8.partition.internal.profile;
 
 import com.google.common.base.Predicates;
@@ -82,7 +81,7 @@ public final class ProfileTemplateWorker extends AbstractComponent implements Wo
 
     public static final String TEMPLATE_PROFILE_PROPERTY_NAME = "templateProfile";
 
-    @Property(name = "name", label = "Container Name", description = "The name of the container", value = "${karaf.name}", propertyPrivate = true)
+    @Property(name = "name", label = "Container Name", description = "The name of the container", value = "${runtime.id}", propertyPrivate = true)
     private String name;
     @Reference
     private Configurer configurer;

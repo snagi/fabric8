@@ -1,18 +1,17 @@
 /**
- * Copyright (C) FuseSource, Inc.
- * http://fusesource.com
+ *  Copyright 2005-2014 Red Hat, Inc.
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ *  Red Hat licenses this file to you under the Apache License, version
+ *  2.0 (the "License"); you may not use this file except in compliance
+ *  with the License.  You may obtain a copy of the License at
  *
- *    http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or
+ *  implied.  See the License for the specific language governing
+ *  permissions and limitations under the License.
  */
 package io.fabric8.jaas;
 
@@ -28,6 +27,7 @@ import org.apache.felix.scr.annotations.Activate;
 import org.apache.felix.scr.annotations.Component;
 import org.apache.felix.scr.annotations.ConfigurationPolicy;
 import org.apache.felix.scr.annotations.Deactivate;
+import org.apache.felix.scr.annotations.Modified;
 import org.apache.felix.scr.annotations.Properties;
 import org.apache.felix.scr.annotations.Property;
 import org.apache.felix.scr.annotations.Reference;
@@ -41,7 +41,7 @@ import org.osgi.framework.BundleContext;
 
 @ThreadSafe
 @Component(name = "io.fabric8.jaas", label = "%Fabric8 Jaas Realm", //label = "Security realm using Fabric8",
-        policy = ConfigurationPolicy.OPTIONAL, immediate = false, metatype = true)
+        policy = ConfigurationPolicy.OPTIONAL, immediate = true, metatype = true)
 @Service(JaasRealm.class)
 @Properties(
         @Property(name = "supports.container.tokens", value = "true", propertyPrivate=true)
@@ -82,6 +82,7 @@ public final class FabricJaasRealm extends AbstractComponent implements JaasReal
 
     private final List<AppConfigurationEntry> enties = new ArrayList<AppConfigurationEntry>();
 
+
     @Activate
     void activate(BundleContext bundleContext, Map<String, Object> configuration) {
         Map<String, Object> options = new HashMap<String, Object>();
@@ -91,6 +92,19 @@ public final class FabricJaasRealm extends AbstractComponent implements JaasReal
         options.put(ProxyLoginModule.PROPERTY_BUNDLE, Long.toString(bundleContext.getBundle().getBundleId()));
         enties.add(new AppConfigurationEntry(ProxyLoginModule.class.getName(), AppConfigurationEntry.LoginModuleControlFlag.REQUIRED, options));
         activateComponent();
+    }
+
+    @Modified
+    void modified(BundleContext bundleContext, Map<String, Object> configuration) {
+        Map<String, Object> options = new HashMap<String, Object>();
+        options.putAll(configuration);
+        options.put(BundleContext.class.getName(), bundleContext);
+        options.put(ProxyLoginModule.PROPERTY_MODULE, ZK_LOGIN_MODULE);
+        options.put(ProxyLoginModule.PROPERTY_BUNDLE, Long.toString(bundleContext.getBundle().getBundleId()));
+        synchronized (enties) {
+            enties.clear();
+            enties.add(new AppConfigurationEntry(ProxyLoginModule.class.getName(), AppConfigurationEntry.LoginModuleControlFlag.REQUIRED, options));
+        }
     }
 
     @Deactivate
@@ -107,13 +121,17 @@ public final class FabricJaasRealm extends AbstractComponent implements JaasReal
     @Override
     public int getRank() {
         assertValid();
-        return 1;
+        // we want to be highest by default but allow end user to install
+        // a JaasRealm with a higher rank so lets use rank 99
+        return 99;
     }
 
     @Override
     public AppConfigurationEntry[] getEntries() {
         assertValid();
-        return enties.toArray(new AppConfigurationEntry[enties.size()]);
+        synchronized (enties) {
+            return enties.toArray(new AppConfigurationEntry[enties.size()]);
+        }
     }
 
     void bindCurator(CuratorFramework curator) {

@@ -1,18 +1,17 @@
 /**
- * Copyright (C) FuseSource, Inc.
- * http://fusesource.com
+ *  Copyright 2005-2014 Red Hat, Inc.
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ *  Red Hat licenses this file to you under the Apache License, version
+ *  2.0 (the "License"); you may not use this file except in compliance
+ *  with the License.  You may obtain a copy of the License at
  *
- *    http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or
+ *  implied.  See the License for the specific language governing
+ *  permissions and limitations under the License.
  */
 package io.fabric8.groups.internal;
 
@@ -37,7 +36,7 @@ public class DelegateZooKeeperGroup<T extends NodeState> implements Group<T> {
     private final String path;
     private final Class<T> clazz;
     private final List<GroupListener<T>> listeners;
-    private Group<T> group;
+    protected Group<T> group;
     private T state;
     private AtomicBoolean started = new AtomicBoolean();
 
@@ -53,7 +52,7 @@ public class DelegateZooKeeperGroup<T extends NodeState> implements Group<T> {
             closeQuietly(group);
         }
         if (curator != null) {
-            group = new ZooKeeperGroup<T>(curator, path, clazz);
+            group = createGroup(curator, path, clazz);
             group.update(state);
             for (GroupListener<T> listener : listeners) {
                 group.add(listener);
@@ -63,6 +62,10 @@ public class DelegateZooKeeperGroup<T extends NodeState> implements Group<T> {
             }
             this.group = group;
         }
+    }
+
+    protected Group<T> createGroup(CuratorFramework client, String path, Class<T> clazz) {
+        return new ZooKeeperGroup<T>(client, path, clazz);
     }
 
     @Override
@@ -164,6 +167,11 @@ public class DelegateZooKeeperGroup<T extends NodeState> implements Group<T> {
         } else {
             return Collections.emptyList();
         }
+    }
+
+    @Override
+    public T getLastState() {
+        return group != null ? group.getLastState() : null;
     }
 
     public static void closeQuietly(Closeable closeable) {

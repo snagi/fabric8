@@ -1,22 +1,39 @@
 <?xml version="1.0" encoding="UTF-8"?>
+<!--
+
+     Copyright 2005-2014 Red Hat, Inc.
+
+     Red Hat licenses this file to you under the Apache License, version
+     2.0 (the "License"); you may not use this file except in compliance
+     with the License.  You may obtain a copy of the License at
+
+        http://www.apache.org/licenses/LICENSE-2.0
+
+     Unless required by applicable law or agreed to in writing, software
+     distributed under the License is distributed on an "AS IS" BASIS,
+     WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or
+     implied.  See the License for the specific language governing
+     permissions and limitations under the License.
+
+-->
 <project xmlns="http://maven.apache.org/POM/4.0.0"
          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <parent>
         <artifactId>fabric-project</artifactId>
         <groupId>io.fabric8</groupId>
-        <version>1.0.0-SNAPSHOT</version>
+        <version>1.1.0-SNAPSHOT</version>
     </parent>
     <modelVersion>4.0.0</modelVersion>
 
     <artifactId>fabric-docker-provider</artifactId>
+    <name>Fabric8 :: Docker :: Container Provider</name>
     <packaging>bundle</packaging>
-    <name>[TODO]${project.artifactId}</name>
-    <description>Fabric8 :: Docker :: Container Provider</description>
 
     <properties>
         <fuse.osgi.export>
-            io.fabric8.docker.provider*;-noimport:=true
+            io.fabric8.docker.provider*;-noimport:=true,
+            io.fabric8.docker.provider.commands;-noimport:=true,
         </fuse.osgi.export>
         <fuse.osgi.import>
           io.fabric8.docker.api*,
@@ -32,7 +49,23 @@
           !javax.ws.rs*,
           *
         </fuse.osgi.import>
-        <fuse.osgi.service.component>OSGI-INF/*</fuse.osgi.service.component>
+        <fuse.osgi.private.pkg>
+          io.fabric8.utils.features;-split-package:=first,
+          io.fabric8.utils;-split-package:=first,
+          io.fabric8.utils.shell;-split-package:=first,
+          org.apache.karaf.features.*;-split-package:=first,
+          org.apache.karaf.util.collections.*;-split-package:=first,
+          org.apache.felix.utils.*;-split-package:=first,
+          org.ops4j.pax.url.maven.commons.*;-split-package:=first,
+          org.ops4j.util.collections.*;-split-package:=first,
+          org.ops4j.util.xml.*;-split-package:=first,
+        </fuse.osgi.private.pkg>
+        <fuse.osgi.service.component>
+            <!-- Use explicit file locations because there is no support for wildcard resource discovery in non-osgi environments -->
+            OSGI-INF/io.fabric8.docker.provider.commands.ContainerCreateDocker.xml,
+            OSGI-INF/io.fabric8.docker.provider.DockerApiRegistry.xml,
+            OSGI-INF/io.fabric8.docker.provider.DockerContainerProvider.xml
+        </fuse.osgi.service.component>
     </properties>
 
     <dependencies>
@@ -44,7 +77,7 @@
         <dependency>
             <groupId>org.eclipse.jgit</groupId>
             <artifactId>org.eclipse.jgit</artifactId>
-            <version>${jgit.version}</version>
+            <version>${jgit-version}</version>
         </dependency>
         <dependency>
             <groupId>io.fabric8</groupId>
@@ -58,6 +91,16 @@
         <dependency>
             <groupId>io.fabric8</groupId>
             <artifactId>fabric-docker-api</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>io.fabric8</groupId>
+            <artifactId>fabric-project-deployer</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>io.fabric8</groupId>
+            <artifactId>fabric-process-container</artifactId>
             <version>${project.version}</version>
         </dependency>
 

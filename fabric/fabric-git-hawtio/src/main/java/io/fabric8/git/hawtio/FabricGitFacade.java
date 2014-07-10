@@ -1,18 +1,17 @@
 /**
- * Copyright (C) FuseSource, Inc.
- * http://fusesource.com
+ *  Copyright 2005-2014 Red Hat, Inc.
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ *  Red Hat licenses this file to you under the Apache License, version
+ *  2.0 (the "License"); you may not use this file except in compliance
+ *  with the License.  You may obtain a copy of the License at
  *
- *    http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or
+ *  implied.  See the License for the specific language governing
+ *  permissions and limitations under the License.
  */
 package io.fabric8.git.hawtio;
 
@@ -48,6 +47,8 @@ import io.hawt.git.FileInfo;
 import io.hawt.git.GitFacadeMXBean;
 import io.hawt.git.GitFacadeSupport;
 import io.hawt.util.Strings;
+import org.eclipse.jgit.util.Base64;
+
 import static io.fabric8.git.internal.GitHelpers.getRootGitDirectory;
 
 @ThreadSafe
@@ -169,7 +170,24 @@ public final class FabricGitFacade extends GitFacadeSupport implements Validatab
             public CommitInfo call(Git git, GitContext context) throws Exception {
                 checkoutBranch(git, branch);
                 File rootDir = getRootGitDirectory(git);
-                CommitInfo answer = doWrite(git, rootDir, branch, path, contents, personIdent, commitMessage);
+                byte[] data = contents.getBytes();
+                CommitInfo answer = doWrite(git, rootDir, branch, path, data, personIdent, commitMessage);
+                context.commit(commitMessage);
+                return answer;
+            }
+        });
+    }
+
+    @Override
+    public CommitInfo writeBase64(final String branch, final String path, final String commitMessage, final String authorName, final String authorEmail, final String contents) {
+        assertValid();
+        final PersonIdent personIdent = new PersonIdent(authorName, authorEmail);
+        return gitWriteOperation(personIdent, new GitOperation<CommitInfo>() {
+            public CommitInfo call(Git git, GitContext context) throws Exception {
+                checkoutBranch(git, branch);
+                File rootDir = getRootGitDirectory(git);
+                byte[] data = Base64.decode(contents);
+                CommitInfo answer = doWrite(git, rootDir, branch, path, data, personIdent, commitMessage);
                 context.commit(commitMessage);
                 return answer;
             }
